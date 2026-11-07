@@ -20,13 +20,25 @@ def load_model(request):
         raise RuntimeError("NOVA requires Blender 5.2 or newer.")
     model = request["model"]
     glaze = request["glaze_id"]
-    if glaze not in GLAZES or request["inputs"]["layers"] != [{"glaze_id": glaze, "order": 1}]:
+    custom_color = request.get("custom_color_srgb", "#C84B32")
+    if glaze == "CUSTOM":
+        layers = [{"glaze_id": glaze, "order": 1, "color_srgb": custom_color}]
+        if not isinstance(custom_color, str) or len(custom_color) != 7 or custom_color[0] != "#":
+            raise ValueError("Custom glaze color must use #RRGGBB format.")
+        try:
+            int(custom_color[1:], 16)
+        except ValueError as error:
+            raise ValueError("Custom glaze color must use #RRGGBB format.") from error
+    else:
+        layers = [{"glaze_id": glaze, "order": 1}]
+    if (glaze not in GLAZES and glaze != "CUSTOM") or request["inputs"]["layers"] != layers:
         raise ValueError("Choose one glaze preset for layer 1.")
 
     register()
     bpy.ops.nova_pottery.open_studio()
     scene = bpy.context.scene
     settings = scene.nova_pottery
+    settings.custom_color_srgb = custom_color
     settings.glaze = glaze
 
     if model["kind"] == "glb":

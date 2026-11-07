@@ -59,14 +59,36 @@ IMPORT_DATA = (
 )
 
 
-def glaze_material(key):
+def glaze_material(key, custom_color_srgb="#C84B32"):
+    if key == "CUSTOM":
+        if not isinstance(custom_color_srgb, str) or len(custom_color_srgb) != 7 or custom_color_srgb[0] != "#":
+            raise ValueError("Custom glaze color must use #RRGGBB format.")
+        try:
+            channels = [int(custom_color_srgb[index:index + 2], 16) / 255 for index in (1, 3, 5)]
+        except ValueError as error:
+            raise ValueError("Custom glaze color must use #RRGGBB format.") from error
+        linear = [channel / 12.92 if channel <= .04045 else ((channel + .055) / 1.055) ** 2.4 for channel in channels]
+        dark = tuple(channel * .58 for channel in linear)
+        light = tuple(linear)
+        roughness, coat = .23, .36
+        label = f"Custom Glaze {custom_color_srgb.upper()}"
+        cache_key = f"CUSTOM:{custom_color_srgb.upper()}"
+    else:
+        label, _, dark, light, roughness, coat = GLAZES[key]
+        cache_key = key
+
+    # Blender's ID collection lookup is name-indexed; use it before scanning
+    # every material datablock on each glaze change.
+    material = bpy.data.materials.get(label)
+    if material and material.get("nova_glaze") == cache_key:
+        return material
+
     for material in bpy.data.materials:
-        if material.get("nova_glaze") == key:
+        if material.get("nova_glaze") == cache_key:
             return material
 
-    label, _, dark, light, roughness, coat = GLAZES[key]
     material = bpy.data.materials.new(label)
-    material["nova_glaze"] = key
+    material["nova_glaze"] = cache_key
     material.diffuse_color = (*light, 1)
     nodes = material.node_tree.nodes
     link = material.node_tree.links.new
@@ -131,7 +153,7 @@ def apply_glaze(mesh, material):
 
 def update_glaze(settings, _context):
     if settings.model_collection and settings.model_collection.objects:
-        material = glaze_material(settings.glaze)
+        material = glaze_material(settings.glaze, settings.custom_color_srgb)
         for obj in settings.model_collection.objects:
             apply_glaze(obj.data, material)
 
@@ -250,7 +272,7 @@ def replace_model(settings, objects, label):
         # The importer bakes transforms into the vertices, so all parts can
         # be fitted together without changing their relative placement.
         fit = fit_model(objects)
-        material = glaze_material(settings.glaze)
+        material = glaze_material(settings.glaze, settings.custom_color_srgb)
         for obj in objects:
             obj.matrix_world = fit
             apply_glaze(obj.data, material)
@@ -330,9 +352,10 @@ class NOVA_PG_settings(bpy.types.PropertyGroup):
         name="Shape", items=[(key, name, "") for key, (name, _) in SHAPES.items()],
     )
     glaze: bpy.props.EnumProperty(
-        name="Glaze", items=[(key, preset[0], preset[1]) for key, preset in GLAZES.items()],
+        name="Glaze", items=[(key, preset[0], preset[1]) for key, preset in GLAZES.items()] + [("CUSTOM", "Custom Color", "Custom sRGB glaze color")],
         update=update_glaze,
     )
+    custom_color_srgb: bpy.props.StringProperty(default="#C84B32", update=update_glaze)
 
 
 class NOVA_OT_open_studio(bpy.types.Operator):

@@ -71,7 +71,9 @@ def main():
     background.alpha_composite(image)
 
     print("Reconstructing geometry", flush=True)
-    with torch.no_grad(), torch.autocast("cuda", enabled=device.startswith("cuda")):
+    # Inference mode also disables autograd's version tracking, reducing CPU
+    # overhead and peak memory during this forward-only reconstruction.
+    with torch.inference_mode(), torch.autocast("cuda", enabled=device.startswith("cuda")):
         scene_codes = model([background.convert("RGB")], device=device).float()
     mesh, = model.extract_mesh(scene_codes, False, resolution=args.mesh_resolution)
 

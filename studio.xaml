@@ -55,7 +55,9 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <TabControl x:Name="OptionsTabs" SelectedIndex="0">
+                        <TabItem Header="Studio">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="18,15,18,12">
                             <TextBlock Style="{StaticResource Section}" Text="Model"/>
                             <Grid>
@@ -75,7 +77,7 @@
 
                             <Separator Margin="0,12,0,11" Background="#DDDCD4"/>
                             <TextBlock Style="{StaticResource Section}" Text="Glaze composition"/>
-                            <TextBlock Foreground="#52625A" FontSize="12" Text="Choose a preset color and finish."/>
+                            <TextBlock Foreground="#52625A" FontSize="12" Text="Choose a preset or make a custom color."/>
                             <RadioButton x:Name="Celadon" GroupName="Glaze" Tag="CELADON" IsChecked="True" Margin="0,8,0,0" AutomationProperties.Name="Jade Celadon, glossy green">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse Width="15" Height="15" Fill="#729882" Margin="4,0,8,0"/>
@@ -97,6 +99,17 @@
                                     <TextBlock Text="Warm satin" Foreground="#52625A"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton x:Name="CustomGlaze" GroupName="Glaze" Tag="CUSTOM" Margin="0,7,0,0" AutomationProperties.Name="Custom glaze color">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse x:Name="CustomSwatch" Width="15" Height="15" Fill="#C84B32" Margin="4,0,8,0"/>
+                                    <TextBlock Text="Custom color" Width="123" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Color wheel" Foreground="#52625A"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <Image x:Name="CustomColorWheel" Width="190" Height="190" HorizontalAlignment="Left" Margin="5,10,0,0" Stretch="Fill" Cursor="Cross" AutomationProperties.Name="Custom glaze color wheel"/>
+                            <TextBlock Style="{StaticResource Field}" Text="Brightness"/>
+                            <Slider x:Name="CustomBrightness" Minimum="0" Maximum="1" Value="0.784" Width="190" HorizontalAlignment="Left" AutomationProperties.Name="Custom color brightness"/>
+                            <TextBlock x:Name="CustomColorHex" Text="#C84B32" FontSize="12" Margin="4,3,0,0"/>
                             <Label Target="{Binding ElementName=Recipe}" Content="Recipe ID or composition notes (optional)" Padding="0" Margin="0,10,0,4" FontSize="12"/>
                             <TextBox x:Name="Recipe" ToolTip="Enter a product or recipe ID, or known oxide or ingredient proportions."/>
 
@@ -117,10 +130,14 @@
                                     <TextBox x:Name="Temperature" ToolTip="Peak firing temperature in degrees Celsius. Leave blank if unknown."/>
                                 </StackPanel>
                             </Grid>
-                            <TextBlock Text="Leave unknown values blank. The preview shows the selected glaze preset; recipe, thickness, and firing inputs are saved in the setup." Foreground="#52625A" FontSize="12" Margin="0,7,0,0"/>
+                            <TextBlock Text="Leave unknown values blank. The preview shows the selected preset or custom glaze color; recipe, thickness, and firing inputs are saved in the setup." Foreground="#52625A" FontSize="12" Margin="0,7,0,0"/>
 
-                            <Expander x:Name="Advanced" Header="Advanced Options" Margin="0,12,0,0" FontWeight="SemiBold">
-                                <StackPanel Margin="13,1,0,0" TextElement.FontWeight="Normal">
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Additional Options">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel Margin="10,4,10,10" TextElement.FontWeight="Normal">
                                     <TextBlock Style="{StaticResource Field}" Text="Kiln atmosphere"/>
                                     <ComboBox x:Name="Atmosphere" SelectedIndex="0" AutomationProperties.Name="Kiln atmosphere">
                                         <ComboBoxItem>Unspecified</ComboBoxItem>
@@ -158,10 +175,10 @@
                                     <TextBlock Text="One-time dependency and model download for photo-to-GLB." Foreground="#52625A" FontSize="11" Margin="0,4,0,0"/>
                                     <CheckBox x:Name="BakePhotoTexture" Content="Bake photo texture into GLB (slower)" Margin="0,8,0,0"/>
                                     <CheckBox x:Name="DraftPhotoMesh" Content="Draft photo mesh (faster, less detail)" Margin="0,6,0,0"/>
-                                </StackPanel>
-                            </Expander>
-                        </StackPanel>
+                                        </StackPanel>
                     </ScrollViewer>
+                </TabItem>
+            </TabControl>
 
                     <Border Grid.Row="1" BorderBrush="#DDDCD4" BorderThickness="0,1,0,0" Padding="18,11">
                         <StackPanel Orientation="Horizontal">

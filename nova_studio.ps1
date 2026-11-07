@@ -5,8 +5,9 @@ $window = [Windows.Markup.XamlReader]::Parse([IO.File]::ReadAllText((Join-Path $
 $ui = @{}
 foreach ($name in @(
     'Model', 'ModelFile', 'ImportGlb', 'GenerateFromPhoto', 'SetupPhotoGenerator',
-    'Celadon', 'Cobalt', 'Oatmeal', 'Recipe',
-    'Thickness', 'Temperature', 'Advanced', 'Atmosphere', 'AtmosphereNotes',
+    'Celadon', 'Cobalt', 'Oatmeal', 'CustomGlaze', 'CustomSwatch', 'CustomColorWheel',
+    'CustomBrightness', 'CustomColorHex', 'Recipe',
+    'Thickness', 'Temperature', 'OptionsTabs', 'Atmosphere', 'AtmosphereNotes',
     'Cone', 'Ramp', 'Soak', 'Schedule', 'CoolingRate', 'CoolingProfile', 'Clay',
     'ClayColor', 'ThicknessMap', 'Geometry', 'LocateBlender', 'BlenderPath',
     'Render', 'ExportSetup', 'Preview', 'EmptyPreview', 'PreviewLabel', 'Status', 'SavePreview',
@@ -15,6 +16,81 @@ foreach ($name in @(
 )) {
     $ui[$name] = $window.FindName($name)
 }
+
+$script:customHue = 10.0
+$script:customSaturation = 0.75
+$script:customColor = '#C84B32'
+function Get-HsvRgb([double]$hue, [double]$saturation, [double]$value) {
+    $chroma = $value * $saturation
+    $h = (($hue % 360) + 360) % 360 / 60
+    $x = $chroma * (1 - [math]::Abs(($h % 2) - 1))
+    if ($h -lt 1) { $r=$chroma; $g=$x; $b=0 }
+    elseif ($h -lt 2) { $r=$x; $g=$chroma; $b=0 }
+    elseif ($h -lt 3) { $r=0; $g=$chroma; $b=$x }
+    elseif ($h -lt 4) { $r=0; $g=$x; $b=$chroma }
+    elseif ($h -lt 5) { $r=$x; $g=0; $b=$chroma }
+    else { $r=$chroma; $g=0; $b=$x }
+    $m = $value - $chroma
+    return ('#{0:X2}{1:X2}{2:X2}' -f [int][math]::Round(($r+$m)*255), [int][math]::Round(($g+$m)*255), [int][math]::Round(($b+$m)*255))
+}
+function Update-CustomColor {
+    $script:customColor = Get-HsvRgb $script:customHue $script:customSaturation $ui.CustomBrightness.Value
+    $ui.CustomColorHex.Text = $script:customColor
+    $color = [Windows.Media.Color][Windows.Media.ColorConverter]::ConvertFromString($script:customColor)
+    $ui.CustomSwatch.Fill = [Windows.Media.SolidColorBrush]::new($color)
+}
+
+# The wheel maps angle to hue and distance from its center to saturation.
+if (-not ('NovaColorWheel' -as [type])) {
+    Add-Type -ReferencedAssemblies PresentationCore, WindowsBase -TypeDefinition @'
+using System;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+public static class NovaColorWheel {
+    public static WriteableBitmap Create(int size) {
+        byte[] pixels = new byte[size * size * 4];
+        double center = (size - 1) / 2.0;
+        for (int y = 0; y < size; y++) for (int x = 0; x < size; x++) {
+            double dx = x - center, dy = center - y;
+            double saturation = Math.Min(1.0, Math.Sqrt(dx * dx + dy * dy) / center);
+            double hue = (Math.Atan2(dy, dx) * 180.0 / Math.PI + 360.0) % 360.0;
+            double chroma = saturation, h = hue / 60.0;
+            double part = chroma * (1.0 - Math.Abs(h % 2.0 - 1.0));
+            double r = 0, g = 0, b = 0;
+            if (h < 1) { r = chroma; g = part; }
+            else if (h < 2) { r = part; g = chroma; }
+            else if (h < 3) { g = chroma; b = part; }
+            else if (h < 4) { g = part; b = chroma; }
+            else if (h < 5) { r = part; b = chroma; }
+            else { r = chroma; b = part; }
+            int i = (y * size + x) * 4;
+            if (dx * dx + dy * dy > center * center) { pixels[i] = 235; pixels[i + 1] = 242; pixels[i + 2] = 245; }
+            else { pixels[i] = (byte)Math.Round(b * 255); pixels[i + 1] = (byte)Math.Round(g * 255); pixels[i + 2] = (byte)Math.Round(r * 255); }
+            pixels[i + 3] = 255;
+        }
+        var bitmap = new WriteableBitmap(size, size, 96, 96, PixelFormats.Bgra32, null);
+        bitmap.WritePixels(new Int32Rect(0, 0, size, size), pixels, size * 4, 0);
+        return bitmap;
+    }
+}
+'@
+}
+$ui.CustomColorWheel.Source = [NovaColorWheel]::Create(190)
+$ui.CustomColorWheel.Add_MouseLeftButtonDown({
+    param($sender, $eventArgs)
+    $point = $eventArgs.GetPosition($sender)
+    $dx = $point.X - $sender.ActualWidth / 2
+    $dy = $sender.ActualHeight / 2 - $point.Y
+    $radius = [math]::Sqrt($dx*$dx + $dy*$dy)
+    if ($radius -le $sender.ActualWidth / 2) {
+        $script:customHue = ([math]::Atan2($dy, $dx) * 180 / [math]::PI + 360) % 360
+        $script:customSaturation = [math]::Min(1, $radius / ($sender.ActualWidth / 2))
+        $ui.CustomGlaze.IsChecked = $true
+        Update-CustomColor
+    }
+})
+$ui.CustomBrightness.Add_ValueChanged({ $ui.CustomGlaze.IsChecked = $true; Update-CustomColor })
 
 function Find-Blender {
     if ($env:NOVA_BLENDER -and (Test-Path -LiteralPath $env:NOVA_BLENDER -PathType Leaf)) {
@@ -52,7 +128,7 @@ function Get-OptionalNumber($control, [string]$label, [switch]$AllowZero) {
     if (!$parsed -or [double]::IsNaN($number) -or [double]::IsInfinity($number) -or
         $number -lt 0 -or (!$AllowZero -and $number -eq 0)) {
         if (!$control.IsVisible -and $control -in @($ui.Ramp, $ui.Soak, $ui.CoolingRate)) {
-            $ui.Advanced.IsExpanded = $true
+            $ui.OptionsTabs.SelectedIndex = 1
         }
         $control.BringIntoView()
         [void]$control.Focus()
@@ -68,21 +144,31 @@ function Get-ModelSelection {
 }
 
 function Get-Setup {
-    $glaze = @($ui.Celadon, $ui.Cobalt, $ui.Oatmeal) | Where-Object { $_.IsChecked } | Select-Object -First 1
+    $glaze = @($ui.Celadon, $ui.Cobalt, $ui.Oatmeal, $ui.CustomGlaze) | Where-Object { $_.IsChecked } | Select-Object -First 1
     $model = Get-ModelSelection
     $model.rotation_xyz_degrees = @($ui.Tilt.Value, $ui.Roll.Value, $ui.Turn.Value)
     $clayColor = Get-OptionalText $ui.ClayColor
     if ($clayColor -and $clayColor -notmatch '^#[0-9a-fA-F]{6}$') {
-        $ui.Advanced.IsExpanded = $true
+        $ui.OptionsTabs.SelectedIndex = 1
         [void]$ui.ClayColor.Focus()
         throw 'Fired clay color must use the #RRGGBB format.'
+    }
+
+    $customGlazeColor = $null
+    $appearanceSource = 'blender_preset'
+    $layer = [ordered]@{ glaze_id = [string]$glaze.Tag; order = 1 }
+    if ($glaze.Tag -eq 'CUSTOM') {
+        $customGlazeColor = $ui.CustomColorHex.Text
+        $appearanceSource = 'blender_custom'
+        $layer.color_srgb = $customGlazeColor
     }
 
     [ordered]@{
         schema_version = 1
         model = $model
         glaze_id = [string]$glaze.Tag
-        appearance_source = 'blender_preset'
+        custom_color_srgb = $customGlazeColor
+        appearance_source = $appearanceSource
         inputs = [ordered]@{
             recipe_id_or_composition = Get-OptionalText $ui.Recipe
             nominal_thickness_mm = Get-OptionalNumber $ui.Thickness 'Glaze thickness'
@@ -99,7 +185,7 @@ function Get-Setup {
             fired_clay_color_srgb = $clayColor
             thickness_map_path = Get-OptionalText $ui.ThicknessMap
             firing_geometry_notes = Get-OptionalText $ui.Geometry
-            layers = @([ordered]@{ glaze_id = [string]$glaze.Tag; order = 1 })
+            layers = @($layer)
         }
     }
 }
@@ -179,7 +265,7 @@ function Start-OrientationEditor {
     if ($ui.OrientationEditor.Visibility -eq 'Visible') { Show-OrientationEditor $false; return }
     if ($ui.OrientationModel.Content) { Show-OrientationEditor $true; return }
     try {
-        if (!$script:blender) { throw 'Select Blender under Advanced Options before orienting a model.' }
+        if (!$script:blender) { throw 'Select Blender under the Additional Options tab before orienting a model.' }
         $prefix = Join-Path $scratch ([guid]::NewGuid().ToString('N'))
         $request = "$prefix.json"
         $mesh = "$prefix.mesh"
@@ -225,9 +311,9 @@ function Start-Preview {
     if ($script:job) { return }
     try {
         if (!$script:blender -or !(Test-Path -LiteralPath $script:blender -PathType Leaf)) {
-            $ui.Advanced.IsExpanded = $true
+            $ui.OptionsTabs.SelectedIndex = 1
             $ui.LocateBlender.BringIntoView()
-            throw 'Install Blender 5.2 or newer, then use Locate Blender under Advanced Options.'
+            throw 'Install Blender 5.2 or newer, then use Locate Blender under the Additional Options tab.'
         }
 
         $setup = Get-Setup
@@ -236,6 +322,7 @@ function Start-Preview {
             'CELADON' { 'Jade Celadon' }
             'COBALT' { 'Cobalt Blue' }
             'OATMEAL' { 'Speckled Oatmeal' }
+            'CUSTOM' { "Custom $($setup.custom_color_srgb)" }
         }
         $prefix = Join-Path $scratch ([guid]::NewGuid().ToString('N'))
         $request = "$prefix.json"
@@ -266,9 +353,9 @@ function Start-PhotoGeneration {
     if ($script:job) { return }
     try {
         if (!(Test-PhotoGenerator)) {
-            $ui.Advanced.IsExpanded = $true
+            $ui.OptionsTabs.SelectedIndex = 1
             $ui.SetupPhotoGenerator.BringIntoView()
-            throw 'Open Advanced Options and click Set Up Photo Generator first.'
+            throw 'Open the Additional Options tab and click Set Up Photo Generator first.'
         }
 
         $photo = New-Object Microsoft.Win32.OpenFileDialog -Property @{
