@@ -19,7 +19,9 @@ foreach ($name in @(
     'FeaOpenOutput', 'FeaOpenStress', 'FeaResult', 'FeaGeometryMode', 'FeaModelScale', 'FeaUpAxis',
     'FeaWallThickness', 'FeaVoxelSize', 'FeaPreparedVoxelSize', 'FeaMaxVoxels',
     'FeaYoungModulus', 'FeaPoissonRatio', 'FeaDensity', 'FeaGravity', 'FeaFixedDepth',
-    'FeaTopDepth', 'FeaForceX', 'FeaForceY', 'FeaForceZ', 'FeaLogRange'
+    'FeaTopDepth', 'FeaForceX', 'FeaForceY', 'FeaForceZ', 'FeaLogRange',
+    'CombinedTop', 'CombinedBase', 'CombinedCone', 'CombinedRun', 'CombinedLoad', 'CombinedSetup',
+    'CombinedSample', 'CombinedStatus', 'CombinedResult', 'CombinedSwatch', 'CombinedColor', 'CombinedMatch', 'CombinedApply'
 )) {
     $ui[$name] = $window.FindName($name)
 }
@@ -402,6 +404,7 @@ Supported models: BOWL, VASE, CUP. Supported glaze choices: CELADON, COBALT, OAT
     $ui.ImportModel.IsEnabled = $false
     $ui.FeaRun.IsEnabled = $false
     $ui.FeaSetup.IsEnabled = $false
+    Set-CombinedActionsEnabled $false
     $ui.ChatThinking.Visibility = 'Visible'
     $ui.ChatScroll.ScrollToEnd()
     $timer.Start()
@@ -634,6 +637,7 @@ function Start-StudioJob([string]$program, [string]$arguments, [hashtable]$job, 
     $ui.ChatInput.IsEnabled = $false
     $ui.FeaRun.IsEnabled = $false
     $ui.FeaSetup.IsEnabled = $false
+    Set-CombinedActionsEnabled $false
     if ($job.Kind -in @('Photo', 'Orientation')) {
         $ui.Model.IsEnabled = $false
     }
@@ -802,6 +806,17 @@ $timer.Add_Tick({
             Set-Status 'FEA engine ready'
             return
         }
+        if ($job.Kind -eq 'CombinedSetup') {
+            Update-CombinedCatalog
+            $ui.CombinedStatus.Text = 'Combined predictor ready. Choose glazes or run the bundled sample.'
+            Set-Status 'Combined predictor ready'
+            return
+        }
+        if ($job.Kind -eq 'CombinedPrediction') {
+            Complete-CombinedPrediction $job.Output
+            Set-Status 'Combined glaze prediction ready'
+            return
+        }
         if ($job.Kind -eq 'FEA') {
             $summary = Get-Content -LiteralPath $job.Output -Raw -Encoding UTF8 | ConvertFrom-Json
             $stress = ([double]$summary.max_von_mises_pa).ToString('0.###E+0', [Globalization.CultureInfo]::InvariantCulture)
@@ -836,6 +851,7 @@ $timer.Add_Tick({
         } else {
             Set-Status $_.Exception.Message
             if ($job.Kind -in @('FEA', 'FEASetup')) { $ui.FeaResult.Text = $_.Exception.Message }
+            if ($job.Kind -in @('CombinedPrediction', 'CombinedSetup')) { $ui.CombinedStatus.Text = $_.Exception.Message }
         }
     } finally {
         $job.Process.Dispose()
@@ -849,6 +865,7 @@ $timer.Add_Tick({
         $ui.ChatInput.IsEnabled = $true
         $ui.FeaRun.IsEnabled = $true
         $ui.FeaSetup.IsEnabled = $true
+        Set-CombinedActionsEnabled $true
         $ui.ChatThinking.Visibility = 'Collapsed'
         if ($script:customPreviewPending) {
             $script:customPreviewPending = $false
@@ -998,6 +1015,8 @@ $ui.SavePreview.Add_Click({
     }
 })
 
+. (Join-Path $PSScriptRoot 'combined_glaze/studio.ps1')
+Update-CombinedCatalog
 Update-BlenderPath
 $window.Add_ContentRendered({ Start-Preview })
 $window.Add_Closed({

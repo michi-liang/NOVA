@@ -1,5 +1,6 @@
 .venv/
 .fea-runtime/
+.combined-glaze/
 __pycache__/
 *.egg-info/
 outputs/
