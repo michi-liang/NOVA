@@ -8,13 +8,18 @@ foreach ($name in @(
     'Model', 'ModelFile', 'ImportModel', 'SetupPhotoGenerator',
     'Celadon', 'Cobalt', 'Oatmeal', 'CustomGlaze', 'CustomSwatch', 'CustomColorPanel', 'CustomColorWheel',
     'CustomOpacity', 'CustomOpacityLabel', 'CustomColorHex', 'CustomColorPreview',
-    'Thickness', 'Temperature', 'OptionsTabs', 'Atmosphere', 'AtmosphereNotes',
+    'Thickness', 'Temperature', 'OptionsTabs', 'AdditionalTabs', 'Atmosphere', 'AtmosphereNotes',
     'Cone', 'Ramp', 'Soak', 'Schedule', 'CoolingRate', 'CoolingProfile', 'Clay',
     'ClayColor', 'ThicknessMap', 'Geometry', 'LocateBlender', 'BlenderPath',
     'Render', 'ExportSetup', 'Preview', 'EmptyPreview', 'PreviewLabel', 'Status', 'SavePreview',
     'Orient', 'OrientationEditor', 'OrientationModel', 'RotateSurface', 'Turn', 'Tilt', 'Roll',
     'ResetOrientation', 'BakePhotoTexture', 'DraftPhotoMesh', 'ChatKeyToggle', 'ChatKeyPanel',
-    'ChatApiKey', 'ChatSaveKey', 'ChatScroll', 'ChatMessages', 'ChatThinking', 'ChatInput', 'ChatSend'
+    'ChatApiKey', 'ChatSaveKey', 'ChatScroll', 'ChatMessages', 'ChatThinking', 'ChatInput', 'ChatSend',
+    'FeaModelPath', 'FeaBrowseModel', 'FeaUseCurrentModel', 'FeaOutput', 'FeaSetup', 'FeaRun',
+    'FeaOpenOutput', 'FeaOpenStress', 'FeaResult', 'FeaGeometryMode', 'FeaModelScale', 'FeaUpAxis',
+    'FeaWallThickness', 'FeaVoxelSize', 'FeaPreparedVoxelSize', 'FeaMaxVoxels',
+    'FeaYoungModulus', 'FeaPoissonRatio', 'FeaDensity', 'FeaGravity', 'FeaFixedDepth',
+    'FeaTopDepth', 'FeaForceX', 'FeaForceY', 'FeaForceZ', 'FeaLogRange'
 )) {
     $ui[$name] = $window.FindName($name)
 }
@@ -156,7 +161,8 @@ function Get-OptionalNumber($control, [string]$label, [switch]$AllowZero) {
     if (!$parsed -or [double]::IsNaN($number) -or [double]::IsInfinity($number) -or
         $number -lt 0 -or (!$AllowZero -and $number -eq 0)) {
         if (!$control.IsVisible -and $control -in @($ui.Ramp, $ui.Soak, $ui.CoolingRate)) {
-            $ui.OptionsTabs.SelectedIndex = 1
+            $ui.OptionsTabs.SelectedIndex = 2
+            $ui.AdditionalTabs.SelectedIndex = 0
         }
         $control.BringIntoView()
         [void]$control.Focus()
@@ -177,7 +183,8 @@ function Get-Setup {
     $model.rotation_xyz_degrees = @($ui.Tilt.Value, $ui.Roll.Value, $ui.Turn.Value)
     $clayColor = Get-OptionalText $ui.ClayColor
     if ($clayColor -and $clayColor -notmatch '^#[0-9a-fA-F]{6}$') {
-        $ui.OptionsTabs.SelectedIndex = 1
+        $ui.OptionsTabs.SelectedIndex = 2
+        $ui.AdditionalTabs.SelectedIndex = 0
         [void]$ui.ClayColor.Focus()
         throw 'Fired clay color must use the #RRGGBB format.'
     }
@@ -393,9 +400,93 @@ Supported models: BOWL, VASE, CUP. Supported glaze choices: CELADON, COBALT, OAT
     $ui.ChatSend.IsEnabled = $false
     $ui.ChatInput.IsEnabled = $false
     $ui.ImportModel.IsEnabled = $false
+    $ui.FeaRun.IsEnabled = $false
+    $ui.FeaSetup.IsEnabled = $false
     $ui.ChatThinking.Visibility = 'Visible'
     $ui.ChatScroll.ScrollToEnd()
     $timer.Start()
+}
+
+function Set-FeaModel([string]$path) {
+    if (!(Test-Path -LiteralPath $path -PathType Leaf) -or [IO.Path]::GetExtension($path) -ne '.glb') {
+        throw 'Select an existing GLB file for finite element analysis.'
+    }
+    $script:feaModelPath = [IO.Path]::GetFullPath($path)
+    $ui.FeaModelPath.Text = $script:feaModelPath
+}
+
+function Write-FeaSettings([string]$path) {
+    $values = [ordered]@{
+        geometry_mode = [string]$ui.FeaGeometryMode.SelectedItem.Tag
+        model_scale = $ui.FeaModelScale.Text.Trim()
+        up_axis = [string]$ui.FeaUpAxis.SelectedItem.Tag
+        wall_thickness_m = $ui.FeaWallThickness.Text.Trim()
+        voxel_size_m = $ui.FeaVoxelSize.Text.Trim()
+        prepared_voxel_size_m = $ui.FeaPreparedVoxelSize.Text.Trim()
+        max_voxels = $ui.FeaMaxVoxels.Text.Trim()
+        young_modulus_pa = $ui.FeaYoungModulus.Text.Trim()
+        poisson_ratio = $ui.FeaPoissonRatio.Text.Trim()
+        density_kg_m3 = $ui.FeaDensity.Text.Trim()
+        gravity_m_s2 = $ui.FeaGravity.Text.Trim()
+        fixed_base_depth_m = $ui.FeaFixedDepth.Text.Trim()
+        top_load_depth_m = $ui.FeaTopDepth.Text.Trim()
+        force_x_n = $ui.FeaForceX.Text.Trim()
+        force_y_n = $ui.FeaForceY.Text.Trim()
+        force_z_n = $ui.FeaForceZ.Text.Trim()
+        log_range_decades = $ui.FeaLogRange.Text.Trim()
+    }
+    $lines = foreach ($key in $values.Keys) { "$key = $($values[$key])" }
+    [IO.File]::WriteAllLines($path, [string[]]$lines, [Text.UTF8Encoding]::new($false))
+}
+
+function Test-FeaRuntime {
+    $script:feaPython = Join-Path $PSScriptRoot '.fea-runtime/Scripts/python.exe'
+    return (Test-Path -LiteralPath $script:feaPython -PathType Leaf)
+}
+
+function Start-FeaSetup {
+    if ($script:job) { return }
+    try {
+        $setupScript = Join-Path $PSScriptRoot 'setup_fea.ps1'
+        $arguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $setupScript
+        Start-StudioJob (Join-Path $PSHOME 'powershell.exe') $arguments @{
+            Kind = 'FEASetup'; Tool = 'FEA setup'
+        } 'Setting up the local FEA engine. This downloads its Python dependencies once...'
+    } catch {
+        Set-Status $_.Exception.Message
+        $ui.FeaResult.Text = $_.Exception.Message
+    }
+}
+
+function Start-FeaAnalysis {
+    if ($script:job) { return }
+    try {
+        if (!(Test-FeaRuntime)) {
+            $ui.FeaResult.Text = 'Set up the FEA engine before running an analysis.'
+            throw 'Click Set Up FEA Engine on the FEA tab first.'
+        }
+        if (!$script:feaModelPath -or !(Test-Path -LiteralPath $script:feaModelPath -PathType Leaf)) {
+            throw 'Choose a vase GLB, or click Use imported Studio GLB on the FEA tab.'
+        }
+        $output = $ui.FeaOutput.Text.Trim()
+        if (!$output) { $output = Join-Path $PSScriptRoot ('outputs/fea-run-' + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
+        if (![IO.Path]::IsPathRooted($output)) { $output = Join-Path $PSScriptRoot $output }
+        $output = [IO.Path]::GetFullPath($output)
+        $ui.FeaOutput.Text = $output
+
+        $settingsPath = Join-Path $scratch ([guid]::NewGuid().ToString('N') + '-fea-settings.txt')
+        Write-FeaSettings $settingsPath
+        $arguments = '-m vase_stress.cli run --model "{0}" --settings "{1}" --output "{2}"' -f $script:feaModelPath, $settingsPath, $output
+        $ui.FeaOpenOutput.IsEnabled = $false
+        $ui.FeaOpenStress.IsEnabled = $false
+        $ui.FeaResult.Text = 'Analysis running. Large or fine meshes can take several minutes.'
+        Start-StudioJob $script:feaPython $arguments @{
+            Kind = 'FEA'; Tool = 'FEA engine'; Output = Join-Path $output 'summary.json'; OutputFolder = $output
+        } 'Running finite element analysis. This may take several minutes...'
+    } catch {
+        Set-Status $_.Exception.Message
+        $ui.FeaResult.Text = $_.Exception.Message
+    }
 }
 
 function Set-Status([string]$message) {
@@ -541,6 +632,8 @@ function Start-StudioJob([string]$program, [string]$arguments, [hashtable]$job, 
     $ui.Orient.IsEnabled = $false
     $ui.ChatSend.IsEnabled = $false
     $ui.ChatInput.IsEnabled = $false
+    $ui.FeaRun.IsEnabled = $false
+    $ui.FeaSetup.IsEnabled = $false
     if ($job.Kind -in @('Photo', 'Orientation')) {
         $ui.Model.IsEnabled = $false
     }
@@ -552,7 +645,8 @@ function Start-Preview {
     if ($script:job) { return }
     try {
         if (!$script:blender -or !(Test-Path -LiteralPath $script:blender -PathType Leaf)) {
-            $ui.OptionsTabs.SelectedIndex = 1
+            $ui.OptionsTabs.SelectedIndex = 2
+            $ui.AdditionalTabs.SelectedIndex = 0
             $ui.LocateBlender.BringIntoView()
             throw 'Install Blender 5.2 or newer, then use Locate Blender under the Additional Options tab.'
         }
@@ -594,7 +688,8 @@ function Start-PhotoGeneration([string]$photoPath) {
     if ($script:job) { return }
     try {
         if (!(Test-PhotoGenerator)) {
-            $ui.OptionsTabs.SelectedIndex = 1
+            $ui.OptionsTabs.SelectedIndex = 2
+            $ui.AdditionalTabs.SelectedIndex = 0
             $ui.SetupPhotoGenerator.BringIntoView()
             throw 'Open the Additional Options tab and click Set Up Photo Generator first.'
         }
@@ -628,6 +723,9 @@ function Import-ModelFile([string]$path) {
 
 $script:blender = Find-Blender
 $script:glbPath = $null
+$script:feaModelPath = $null
+$ui.FeaModelPath.Text = 'No FEA model selected'
+$ui.FeaOutput.Text = ''
 $script:job = $null
 $script:lastImage = $null
 $script:chatHistory = @()
@@ -698,6 +796,22 @@ $timer.Add_Tick({
             Set-Status 'Photo generator ready. Use the import icon to choose a photo.'
             return
         }
+        if ($job.Kind -eq 'FEASetup') {
+            if (!(Test-FeaRuntime)) { throw 'The FEA setup did not create its Python environment.' }
+            $ui.FeaResult.Text = 'FEA engine ready. Choose a GLB and review the FEA settings before running.'
+            Set-Status 'FEA engine ready'
+            return
+        }
+        if ($job.Kind -eq 'FEA') {
+            $summary = Get-Content -LiteralPath $job.Output -Raw -Encoding UTF8 | ConvertFrom-Json
+            $stress = ([double]$summary.max_von_mises_pa).ToString('0.###E+0', [Globalization.CultureInfo]::InvariantCulture)
+            $displacement = ([double]$summary.max_displacement_m).ToString('0.###E+0', [Globalization.CultureInfo]::InvariantCulture)
+            $ui.FeaResult.Text = "Complete. Max von Mises stress: $stress Pa. Max displacement: $displacement m. Results: $($job.OutputFolder)"
+            $ui.FeaOpenOutput.IsEnabled = $true
+            $ui.FeaOpenStress.IsEnabled = $true
+            Set-Status 'FEA analysis complete'
+            return
+        }
         if ($job.Kind -eq 'Orientation') {
             Open-OrientationMesh $job.Output
             Set-Status 'Drag to turn and tilt, or use the sliders. Render Preview applies the orientation.'
@@ -719,7 +833,10 @@ $timer.Add_Tick({
     } catch {
         if ($job.Kind -eq 'Chat') {
             Add-ChatMessage "I couldn't get a reply. Check your API key and connection, then try again."
-        } else { Set-Status $_.Exception.Message }
+        } else {
+            Set-Status $_.Exception.Message
+            if ($job.Kind -in @('FEA', 'FEASetup')) { $ui.FeaResult.Text = $_.Exception.Message }
+        }
     } finally {
         $job.Process.Dispose()
         $script:job = $null
@@ -730,6 +847,8 @@ $timer.Add_Tick({
         $ui.Model.IsEnabled = $true
         $ui.ChatSend.IsEnabled = $true
         $ui.ChatInput.IsEnabled = $true
+        $ui.FeaRun.IsEnabled = $true
+        $ui.FeaSetup.IsEnabled = $true
         $ui.ChatThinking.Visibility = 'Collapsed'
         if ($script:customPreviewPending) {
             $script:customPreviewPending = $false
@@ -761,6 +880,40 @@ $ui.ChatInput.Add_PreviewKeyDown({
     if ($eventArgs.Key -eq [Windows.Input.Key]::Enter -and [Windows.Input.Keyboard]::Modifiers.HasFlag([Windows.Input.ModifierKeys]::Control)) {
         $eventArgs.Handled = $true
         $ui.ChatSend.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+    }
+})
+$ui.FeaBrowseModel.Add_Click({
+    $dialog = New-Object Microsoft.Win32.OpenFileDialog -Property @{ Filter = 'glTF binary (*.glb)|*.glb' }
+    if ($dialog.ShowDialog($window)) {
+        try { Set-FeaModel $dialog.FileName; $ui.FeaResult.Text = 'GLB selected. Review FEA settings, then run the analysis.' }
+        catch { Set-Status $_.Exception.Message; $ui.FeaResult.Text = $_.Exception.Message }
+    }
+})
+$ui.FeaUseCurrentModel.Add_Click({
+    if ($script:glbPath) {
+        try { Set-FeaModel $script:glbPath; $ui.FeaResult.Text = 'Using the imported Studio GLB for analysis.' }
+        catch { Set-Status $_.Exception.Message; $ui.FeaResult.Text = $_.Exception.Message }
+    } else {
+        Set-Status 'Import a GLB in Studio first, or browse for an FEA GLB.'
+        $ui.FeaResult.Text = 'No imported Studio GLB is selected.'
+    }
+})
+$ui.FeaSetup.Add_Click({ Start-FeaSetup })
+$ui.FeaRun.Add_Click({ Start-FeaAnalysis })
+$ui.FeaOpenOutput.Add_Click({
+    $output = $ui.FeaOutput.Text.Trim()
+    if ($output -and (Test-Path -LiteralPath $output -PathType Container)) {
+        Start-Process -FilePath 'explorer.exe' -ArgumentList "`"$output`""
+    } else {
+        Set-Status 'The FEA results folder no longer exists.'
+    }
+})
+$ui.FeaOpenStress.Add_Click({
+    $stressGlb = Join-Path $ui.FeaOutput.Text 'stress.glb'
+    if (Test-Path -LiteralPath $stressGlb -PathType Leaf) {
+        Start-Process -FilePath $stressGlb
+    } else {
+        Set-Status 'The stress GLB is not available in the selected results folder.'
     }
 })
 

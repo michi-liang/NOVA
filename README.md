@@ -26,6 +26,16 @@ NOVA skips photo texture baking by default because the studio applies a new glaz
 
 The photo generator comes from the repository's `larp-laep-larp-shahor` branch. It uses TripoSR to reconstruct a model from a single image. See [Nova Image to 3D](Nova-Image-to-3D/README.md) for runtime details and upstream attribution.
 
+## Vase finite element analysis
+
+The **FEA** tab runs the local stress analysis from the `fea-gpt` branch on a vase GLB. Browse for a GLB or use the imported Studio GLB, click **Set Up FEA Engine** once, review the solver inputs under **Additional Options → FEA Settings**, and click **Run FEA**. Results are written to the selected folder; NOVA reports maximum von Mises stress and displacement, and can open the stress-colored GLB or results folder.
+
+The FEA setup downloads a dedicated Python 3.11+ environment and NumPy, SciPy, Trimesh, and meshio. The first setup needs internet access. Geometry, material, and load settings are editable in the app or in `examples/settings.txt` for command-line runs. Lengths are meters after model scaling, forces newtons, stresses pascals, and wall thickness is an explicit assumption.
+
+This solver uses homogeneous isotropic linear elasticity, small displacements, gravity, a clamped base, and a voxel tetrahedral mesh. It does not model fracture, contact, buckling, or nonlinear ceramic behavior. Values in `examples/settings.txt` are illustrative; computed stress and displacement are not a guarantee of safe firing or structural strength.
+
+For command-line use after setup, run `python -m vase_stress.cli run --model vase.glb --settings examples/settings.txt --output outputs/run-001` from the project root.
+
 ## Use directly in Blender
 
 1. In Blender 5.2, open **Edit → Preferences → Add-ons**. Use the menu in the upper-right corner and choose **Install from Disk**. Select `nova_pottery.py`, then enable **NOVA Pottery Studio** if prompted.
