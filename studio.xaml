@@ -358,6 +358,13 @@
                             <ComboBox x:Name="CombinedBase" IsEditable="True" Text="SW-253"/>
                             <Label Target="{Binding ElementName=CombinedCone}" Content="Firing cone" Padding="0" Margin="0,10,0,4"/>
                             <TextBox x:Name="CombinedCone" Text="Cone 6"/>
+                            <Expander x:Name="CombinedApiAccess" Header="Live API access" Margin="0,8,0,0">
+                                <StackPanel Margin="0,5,0,0">
+                                    <Label Target="{Binding ElementName=CombinedApiToken}" Content="Prediction API token" Padding="0" Margin="0,0,0,4"/>
+                                    <PasswordBox x:Name="CombinedApiToken" MinHeight="28" AutomationProperties.Name="Prediction API token"/>
+                                    <TextBlock Text="Use the private token from the prediction service owner. NOVA keeps it for this session only." Foreground="#52625A" FontSize="11" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Expander>
                             <WrapPanel Margin="0,9,0,0">
                                 <Button x:Name="CombinedRun" Content="Predict Color and Swatch" Margin="0,0,6,6"/>
                                 <Button x:Name="CombinedLoad" Content="Load Prediction JSON…" Margin="0,0,0,6"/>

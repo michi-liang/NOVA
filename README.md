@@ -42,7 +42,7 @@ On `combined_model`, open **Combined → Set Up Combined Predictor** and select 
 
 Choose the top glaze, base glaze, and firing cone, then click **Predict Color and Swatch**. The appearance service predicts the base color and contrast. The local retrieval model uses those values and the cone to find a similar texture photo and create the swatch. **Apply Color to Studio** uses the predicted color as the custom glaze for a Blender render. The photo swatch stays in the Combined tab.
 
-For live calls, set `AI_TEXTURE_TOKEN` privately before launching NOVA. If the service's tunnel moves, set `GLAZE_API_URL` to the new HTTPS endpoint. **Run Sample** uses the saved prediction included in the bundle, and **Load Prediction JSON** accepts another saved appearance-service response. Both run the local retrieval model without credentials. The swatch is a color-adjusted photo match, so its pattern is illustrative.
+For live calls, enter the service owner's private token under **Combined → Live API access**. NOVA keeps it for the current session only. You can also set `AI_TEXTURE_TOKEN` before launching NOVA. If the service's tunnel moves, set `GLAZE_API_URL` to the new HTTPS endpoint. **Run Sample** uses the saved prediction included in the bundle, and **Load Prediction JSON** accepts another saved appearance-service response. Both run the local retrieval model without credentials. The swatch is a color-adjusted photo match, so its pattern is illustrative.
 
 ## Use directly in Blender
 

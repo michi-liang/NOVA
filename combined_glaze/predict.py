@@ -42,7 +42,7 @@ def fetch_prediction(top, base, cone):
             return json.load(response)
     except HTTPError as error:
         if error.code in (401, 403):
-            raise ValueError('The prediction API denied access. Check AI_TEXTURE_TOKEN.') from error
+            raise ValueError('The prediction API denied access. Check your token under Live API access.') from error
         raise ValueError(f'The prediction API returned HTTP {error.code}. Check the endpoint and glaze IDs.') from error
     except URLError as error:
         raise ValueError('Could not reach the prediction API. Check that the service and tunnel are online.') from error

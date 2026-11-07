@@ -21,7 +21,8 @@ foreach ($name in @(
     'FeaYoungModulus', 'FeaPoissonRatio', 'FeaDensity', 'FeaGravity', 'FeaFixedDepth',
     'FeaTopDepth', 'FeaForceX', 'FeaForceY', 'FeaForceZ', 'FeaLogRange',
     'CombinedTop', 'CombinedBase', 'CombinedCone', 'CombinedRun', 'CombinedLoad', 'CombinedSetup',
-    'CombinedSample', 'CombinedStatus', 'CombinedResult', 'CombinedSwatch', 'CombinedColor', 'CombinedMatch', 'CombinedApply'
+    'CombinedSample', 'CombinedStatus', 'CombinedResult', 'CombinedSwatch', 'CombinedColor', 'CombinedMatch', 'CombinedApply',
+    'CombinedApiAccess', 'CombinedApiToken'
 )) {
     $ui[$name] = $window.FindName($name)
 }
@@ -616,7 +617,7 @@ function Start-OrientationEditor([switch]$KeepOpen) {
     }
 }
 
-function Start-StudioJob([string]$program, [string]$arguments, [hashtable]$job, [string]$message) {
+function Start-StudioJob([string]$program, [string]$arguments, [hashtable]$job, [string]$message, [hashtable]$environment = @{}) {
     $launch = New-Object Diagnostics.ProcessStartInfo -Property @{
         FileName = $program
         Arguments = $arguments
@@ -625,6 +626,7 @@ function Start-StudioJob([string]$program, [string]$arguments, [hashtable]$job, 
         RedirectStandardOutput = $true
         RedirectStandardError = $true
     }
+    foreach ($name in $environment.Keys) { $launch.EnvironmentVariables[$name] = $environment[$name] }
     $job.Process = [Diagnostics.Process]::Start($launch)
     $job.Stdout = $job.Process.StandardOutput.ReadToEndAsync()
     $job.Stderr = $job.Process.StandardError.ReadToEndAsync()
@@ -852,6 +854,9 @@ $timer.Add_Tick({
             Set-Status $_.Exception.Message
             if ($job.Kind -in @('FEA', 'FEASetup')) { $ui.FeaResult.Text = $_.Exception.Message }
             if ($job.Kind -in @('CombinedPrediction', 'CombinedSetup')) { $ui.CombinedStatus.Text = $_.Exception.Message }
+            if ($job.Kind -eq 'CombinedPrediction' -and $_.Exception.Message -like '*API denied access*') {
+                $ui.CombinedApiAccess.IsExpanded = $true
+            }
         }
     } finally {
         $job.Process.Dispose()

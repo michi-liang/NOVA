@@ -5,7 +5,7 @@ $combinedSetup = Join-Path (Split-Path -Parent $PSScriptRoot) 'setup_combined_gl
 $script:combinedColor = $null
 
 function Set-CombinedActionsEnabled([bool]$enabled) {
-    foreach ($name in @('CombinedRun', 'CombinedLoad', 'CombinedSetup', 'CombinedSample', 'CombinedApply')) {
+    foreach ($name in @('CombinedRun', 'CombinedLoad', 'CombinedSetup', 'CombinedSample', 'CombinedApply', 'CombinedApiToken')) {
         $ui[$name].IsEnabled = $enabled
     }
 }
@@ -33,13 +33,25 @@ function Start-CombinedPrediction($request) {
             !(Test-Path -LiteralPath (Join-Path $combinedRuntime 'model.json') -PathType Leaf)) {
             throw 'Click Set Up Combined Predictor and select the supplied predictor folder first.'
         }
+        $environment = @{}
+        if (!$request.prediction_json) {
+            $token = @($ui.CombinedApiToken.Password, $env:AI_TEXTURE_TOKEN, $env:GLAZE_API_TOKEN) |
+                Where-Object { $_ -and $_.Trim() -and $_.Trim() -notlike 'PASTE_*' } | Select-Object -First 1
+            if (!$token) {
+                $ui.CombinedApiAccess.IsExpanded = $true
+                $ui.CombinedApiToken.BringIntoView()
+                [void]$ui.CombinedApiToken.Focus()
+                throw 'Enter your prediction API token under Live API access, or click Run Sample to try it offline.'
+            }
+            $environment.AI_TEXTURE_TOKEN = $token.Trim()
+        }
         $prefix = Join-Path $scratch ([guid]::NewGuid().ToString('N') + '-combined')
         Write-Setup $request "$prefix-request.json"
         $report = "$prefix.json"
         $arguments = '-B "{0}" "{1}" "{2}" "{3}"' -f $combinedWorker, $combinedRuntime, "$prefix-request.json", $report
         Start-StudioJob $combinedPython $arguments @{
             Kind = 'CombinedPrediction'; Tool = 'Combined predictor'; Output = $report
-        } 'Generating a glaze color and retrieved swatch...'
+        } 'Generating a glaze color and retrieved swatch...' -environment $environment
         $ui.CombinedStatus.Text = 'Working on the prediction...'
     } catch { $ui.CombinedStatus.Text = $_.Exception.Message }
 }
