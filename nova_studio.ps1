@@ -5,23 +5,22 @@ Add-Type -AssemblyName System.Security
 $window = [Windows.Markup.XamlReader]::Parse([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'studio.xaml')))
 $ui = @{}
 foreach ($name in @(
-    'Model', 'ModelFile', 'ImportGlb', 'GenerateFromPhoto', 'SetupPhotoGenerator',
+    'Model', 'ModelFile', 'ImportModel', 'SetupPhotoGenerator',
     'Celadon', 'Cobalt', 'Oatmeal', 'CustomGlaze', 'CustomSwatch', 'CustomColorPanel', 'CustomColorWheel',
-    'CustomBrightness', 'CustomColorHex', 'Recipe',
+    'CustomOpacity', 'CustomOpacityLabel', 'CustomColorHex', 'CustomColorPreview',
     'Thickness', 'Temperature', 'OptionsTabs', 'Atmosphere', 'AtmosphereNotes',
     'Cone', 'Ramp', 'Soak', 'Schedule', 'CoolingRate', 'CoolingProfile', 'Clay',
     'ClayColor', 'ThicknessMap', 'Geometry', 'LocateBlender', 'BlenderPath',
     'Render', 'ExportSetup', 'Preview', 'EmptyPreview', 'PreviewLabel', 'Status', 'SavePreview',
     'Orient', 'OrientationEditor', 'OrientationModel', 'RotateSurface', 'Turn', 'Tilt', 'Roll',
     'ResetOrientation', 'BakePhotoTexture', 'DraftPhotoMesh', 'ChatKeyToggle', 'ChatKeyPanel',
-    'ChatApiKey', 'ChatSaveKey', 'ChatScroll', 'ChatMessages', 'ChatInput', 'ChatSend'
+    'ChatApiKey', 'ChatSaveKey', 'ChatScroll', 'ChatMessages', 'ChatThinking', 'ChatInput', 'ChatSend'
 )) {
     $ui[$name] = $window.FindName($name)
 }
 
-$script:customHue = 10.0
-$script:customSaturation = 0.75
 $script:customColor = '#C84B32'
+$script:customPreviewPending = $false
 function Get-HsvRgb([double]$hue, [double]$saturation, [double]$value) {
     $chroma = $value * $saturation
     $h = (($hue % 360) + 360) % 360 / 60
@@ -36,25 +35,18 @@ function Get-HsvRgb([double]$hue, [double]$saturation, [double]$value) {
     return ('#{0:X2}{1:X2}{2:X2}' -f [int][math]::Round(($r+$m)*255), [int][math]::Round(($g+$m)*255), [int][math]::Round(($b+$m)*255))
 }
 function Update-CustomColor {
-    $script:customColor = Get-HsvRgb $script:customHue $script:customSaturation $ui.CustomBrightness.Value
     $ui.CustomColorHex.Text = $script:customColor
     $color = [Windows.Media.Color][Windows.Media.ColorConverter]::ConvertFromString($script:customColor)
     $ui.CustomSwatch.Fill = [Windows.Media.SolidColorBrush]::new($color)
+    $ui.CustomColorPreview.Background = $ui.CustomSwatch.Fill
+    $ui.CustomColorPreview.Opacity = $ui.CustomOpacity.Value
+    $ui.CustomOpacityLabel.Text = ('{0:P0} opacity' -f $ui.CustomOpacity.Value)
+    Request-CustomPreview
 }
 function Set-CustomColorFromHex([string]$hex) {
-    $color = [Windows.Media.Color][Windows.Media.ColorConverter]::ConvertFromString($hex)
-    $r = $color.R / 255.0; $g = $color.G / 255.0; $b = $color.B / 255.0
-    $max = [math]::Max($r, [math]::Max($g, $b)); $min = [math]::Min($r, [math]::Min($g, $b))
-    $delta = $max - $min
-    $script:customSaturation = if ($max -eq 0) { 0 } else { $delta / $max }
-    if ($delta -eq 0) { $script:customHue = 0 }
-    elseif ($max -eq $r) { $script:customHue = 60 * ((($g - $b) / $delta) % 6) }
-    elseif ($max -eq $g) { $script:customHue = 60 * ((($b - $r) / $delta) + 2) }
-    else { $script:customHue = 60 * ((($r - $g) / $delta) + 4) }
-    if ($script:customHue -lt 0) { $script:customHue += 360 }
-    $ui.CustomBrightness.Value = $max
-    $ui.CustomGlaze.IsChecked = $true
-    Update-CustomColor
+    $script:customColor = $hex.ToUpperInvariant()
+    if ($ui.CustomGlaze.IsChecked) { Update-CustomColor }
+    else { $ui.CustomGlaze.IsChecked = $true }
 }
 
 # The wheel maps angle to hue and distance from its center to saturation.
@@ -83,7 +75,12 @@ public static class NovaColorWheel {
             else { r = chroma; b = part; }
             int i = (y * size + x) * 4;
             if (dx * dx + dy * dy > center * center) { pixels[i] = 235; pixels[i + 1] = 242; pixels[i + 2] = 245; }
-            else { pixels[i] = (byte)Math.Round(b * 255); pixels[i + 1] = (byte)Math.Round(g * 255); pixels[i + 2] = (byte)Math.Round(r * 255); }
+            else {
+                double offset = 1.0 - chroma;
+                pixels[i] = (byte)Math.Round((b + offset) * 255);
+                pixels[i + 1] = (byte)Math.Round((g + offset) * 255);
+                pixels[i + 2] = (byte)Math.Round((r + offset) * 255);
+            }
             pixels[i + 3] = 255;
         }
         var bitmap = new WriteableBitmap(size, size, 96, 96, PixelFormats.Bgra32, null);
@@ -93,25 +90,35 @@ public static class NovaColorWheel {
 }
 '@
 }
-$ui.CustomColorWheel.Source = [NovaColorWheel]::Create(190)
-$ui.CustomColorWheel.Add_MouseLeftButtonDown({
+$ui.CustomColorWheel.Source = [NovaColorWheel]::Create(174)
+$pickWheelColor = {
     param($sender, $eventArgs)
+    if ($eventArgs.LeftButton -ne 'Pressed') { return }
     $point = $eventArgs.GetPosition($sender)
     $dx = $point.X - $sender.ActualWidth / 2
     $dy = $sender.ActualHeight / 2 - $point.Y
     $radius = [math]::Sqrt($dx*$dx + $dy*$dy)
     if ($radius -le $sender.ActualWidth / 2) {
-        $script:customHue = ([math]::Atan2($dy, $dx) * 180 / [math]::PI + 360) % 360
-        $script:customSaturation = [math]::Min(1, $radius / ($sender.ActualWidth / 2))
-        $ui.CustomGlaze.IsChecked = $true
-        Update-CustomColor
+        $hue = ([math]::Atan2($dy, $dx) * 180 / [math]::PI + 360) % 360
+        $saturation = [math]::Min(1, $radius / ($sender.ActualWidth / 2))
+        $hex = Get-HsvRgb $hue $saturation 1
+        if ($hex -ne $script:customColor) { Set-CustomColorFromHex $hex }
     }
-})
-$ui.CustomBrightness.Add_ValueChanged({ $ui.CustomGlaze.IsChecked = $true; Update-CustomColor })
-foreach ($presetName in @('Celadon', 'Cobalt', 'Oatmeal')) {
-    $ui[$presetName].Add_Checked({ $ui.CustomColorPanel.Visibility = [Windows.Visibility]::Collapsed })
 }
-$ui.CustomGlaze.Add_Checked({ $ui.CustomColorPanel.Visibility = [Windows.Visibility]::Visible })
+$ui.CustomColorWheel.Add_MouseLeftButtonDown($pickWheelColor)
+$ui.CustomColorWheel.Add_MouseMove($pickWheelColor)
+$ui.CustomOpacity.Add_ValueChanged({ Update-CustomColor })
+foreach ($presetName in @('Celadon', 'Cobalt', 'Oatmeal')) {
+    $ui[$presetName].Add_Checked({
+        $ui.CustomColorPanel.Visibility = [Windows.Visibility]::Collapsed
+        $script:customPreviewPending = $false
+        Update-LiveGlaze
+    })
+}
+$ui.CustomGlaze.Add_Checked({
+    $ui.CustomColorPanel.Visibility = [Windows.Visibility]::Visible
+    Update-CustomColor
+})
 
 function Find-Blender {
     if ($env:NOVA_BLENDER -and (Test-Path -LiteralPath $env:NOVA_BLENDER -PathType Leaf)) {
@@ -189,9 +196,9 @@ function Get-Setup {
         model = $model
         glaze_id = [string]$glaze.Tag
         custom_color_srgb = $customGlazeColor
+        custom_glaze_opacity = if ($glaze.Tag -eq 'CUSTOM') { $ui.CustomOpacity.Value } else { $null }
         appearance_source = $appearanceSource
         inputs = [ordered]@{
-            recipe_id_or_composition = Get-OptionalText $ui.Recipe
             nominal_thickness_mm = Get-OptionalNumber $ui.Thickness 'Glaze thickness'
             peak_temperature_C = Get-OptionalNumber $ui.Temperature 'Peak firing temperature'
             atmosphere = $ui.Atmosphere.SelectedItem.Tag
@@ -230,7 +237,6 @@ function Add-ChatMessage([string]$message, [bool]$fromUser = $false) {
     $bubble.Child = $text
     [void]$ui.ChatMessages.Children.Add($bubble)
     $ui.ChatScroll.ScrollToEnd()
-    return $bubble
 }
 
 function Get-ChatApiKey {
@@ -277,7 +283,6 @@ function Apply-AssistantChanges($changes) {
     }
 
     $textFields = @{
-        recipe_id_or_composition = $ui.Recipe
         atmosphere_notes = $ui.AtmosphereNotes
         cone = $ui.Cone
         firing_schedule = $ui.Schedule
@@ -343,7 +348,7 @@ function Start-ChatRequest([string]$prompt) {
     $current = [ordered]@{
         model = if ($script:glbPath) { 'Imported GLB' } else { [string]$ui.Model.SelectedItem.Tag }
         glaze = if ($ui.CustomGlaze.IsChecked) { "CUSTOM $($ui.CustomColorHex.Text)" } elseif ($ui.Cobalt.IsChecked) { 'COBALT' } elseif ($ui.Oatmeal.IsChecked) { 'OATMEAL' } else { 'CELADON' }
-        recipe = $ui.Recipe.Text
+        custom_glaze_opacity = if ($ui.CustomGlaze.IsChecked) { $ui.CustomOpacity.Value } else { $null }
         thickness_mm = $ui.Thickness.Text
         peak_temperature_C = $ui.Temperature.Text
         atmosphere = $ui.Atmosphere.SelectedItem.Content
@@ -387,7 +392,9 @@ Supported models: BOWL, VASE, CUP. Supported glaze choices: CELADON, COBALT, OAT
     }
     $ui.ChatSend.IsEnabled = $false
     $ui.ChatInput.IsEnabled = $false
-    $script:thinkingBubble = Add-ChatMessage 'Thinking…'
+    $ui.ImportModel.IsEnabled = $false
+    $ui.ChatThinking.Visibility = 'Visible'
+    $ui.ChatScroll.ScrollToEnd()
     $timer.Start()
 }
 
@@ -412,6 +419,38 @@ function Set-GlbModel([string]$path) {
 function Show-OrientationEditor([bool]$visible) {
     $ui.OrientationEditor.Visibility = if ($visible) { 'Visible' } else { 'Collapsed' }
     $ui.Orient.Content = if ($visible) { 'Back to Render' } else { 'Orient Model' }
+}
+
+function Update-LiveGlaze {
+    $model = $ui.OrientationModel.Content
+    if (!$model) { return }
+    $hex = if ($ui.CustomGlaze.IsChecked) { $script:customColor }
+        elseif ($ui.Cobalt.IsChecked) { '#365A88' }
+        elseif ($ui.Oatmeal.IsChecked) { '#C6A67C' }
+        else { '#729882' }
+    $color = [Windows.Media.Color][Windows.Media.ColorConverter]::ConvertFromString($hex)
+    if ($ui.CustomGlaze.IsChecked) {
+        $clay = [Windows.Media.Color][Windows.Media.ColorConverter]::ConvertFromString('#C6A58A')
+        $opacity = $ui.CustomOpacity.Value
+        if ($opacity -eq 0) { $color = $clay }
+        elseif ($opacity -lt 1) {
+            $color = [Windows.Media.Color]::FromScRgb(1,
+                ($clay.ScR + ($color.ScR - $clay.ScR) * $opacity),
+                ($clay.ScG + ($color.ScG - $clay.ScG) * $opacity),
+                ($clay.ScB + ($color.ScB - $clay.ScB) * $opacity))
+        }
+    }
+    $model.Material.Brush = [Windows.Media.SolidColorBrush]::new($color)
+}
+
+function Request-CustomPreview {
+    Update-LiveGlaze
+    if (!$ui.CustomGlaze.IsChecked) { return }
+    if ($script:job) {
+        if ($script:job.Kind -ne 'Orientation') { $script:customPreviewPending = $true }
+        return
+    }
+    Start-OrientationEditor -KeepOpen
 }
 
 function Reset-ModelOrientation {
@@ -450,6 +489,7 @@ function Open-OrientationMesh([string]$path) {
     $model.BackMaterial = $material
     $model.Transform = $orientationTransform
     $ui.OrientationModel.Content = $model
+    Update-LiveGlaze
     Show-OrientationEditor $true
 }
 
@@ -457,9 +497,12 @@ function Get-BlenderArguments([string]$request, [string]$output) {
     return '--background --factory-startup --disable-autoexec --python-exit-code 1 --python "{0}" -- "{1}" "{2}"' -f $worker, $request, $output
 }
 
-function Start-OrientationEditor {
+function Start-OrientationEditor([switch]$KeepOpen) {
     if ($script:job) { return }
-    if ($ui.OrientationEditor.Visibility -eq 'Visible') { Show-OrientationEditor $false; return }
+    if ($ui.OrientationEditor.Visibility -eq 'Visible') {
+        if (!$KeepOpen) { Show-OrientationEditor $false }
+        return
+    }
     if ($ui.OrientationModel.Content) { Show-OrientationEditor $true; return }
     try {
         if (!$script:blender) { throw 'Select Blender under the Additional Options tab before orienting a model.' }
@@ -493,14 +536,13 @@ function Start-StudioJob([string]$program, [string]$arguments, [hashtable]$job, 
     $job.Stderr = $job.Process.StandardError.ReadToEndAsync()
     $script:job = $job
     $ui.Render.IsEnabled = $false
-    $ui.GenerateFromPhoto.IsEnabled = $false
+    $ui.ImportModel.IsEnabled = $false
     $ui.SetupPhotoGenerator.IsEnabled = $false
     $ui.Orient.IsEnabled = $false
     $ui.ChatSend.IsEnabled = $false
     $ui.ChatInput.IsEnabled = $false
     if ($job.Kind -in @('Photo', 'Orientation')) {
         $ui.Model.IsEnabled = $false
-        $ui.ImportGlb.IsEnabled = $false
     }
     Set-Status $message
     $timer.Start()
@@ -521,7 +563,7 @@ function Start-Preview {
             'CELADON' { 'Jade Celadon' }
             'COBALT' { 'Cobalt Blue' }
             'OATMEAL' { 'Speckled Oatmeal' }
-            'CUSTOM' { "Custom $($setup.custom_color_srgb)" }
+            'CUSTOM' { "Custom $($setup.custom_color_srgb) / $($setup.custom_glaze_opacity.ToString('P0')) opacity" }
         }
         $prefix = Join-Path $scratch ([guid]::NewGuid().ToString('N'))
         $request = "$prefix.json"
@@ -548,7 +590,7 @@ function Test-PhotoGenerator {
     return $true
 }
 
-function Start-PhotoGeneration {
+function Start-PhotoGeneration([string]$photoPath) {
     if ($script:job) { return }
     try {
         if (!(Test-PhotoGenerator)) {
@@ -557,20 +599,15 @@ function Start-PhotoGeneration {
             throw 'Open the Additional Options tab and click Set Up Photo Generator first.'
         }
 
-        $photo = New-Object Microsoft.Win32.OpenFileDialog -Property @{
-            Filter = 'Photos (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg'
-        }
-        if (!$photo.ShowDialog($window)) { return }
-
         $output = New-Object Microsoft.Win32.SaveFileDialog -Property @{
             Filter = 'glTF binary (*.glb)|*.glb'; DefaultExt = '.glb'
-            FileName = [IO.Path]::GetFileNameWithoutExtension($photo.FileName) + '.glb'
+            FileName = [IO.Path]::GetFileNameWithoutExtension($photoPath) + '.glb'
         }
         if (!$output.ShowDialog($window)) { return }
         if ([IO.Path]::GetExtension($output.FileName) -ne '.glb') { throw 'Choose a .glb output filename.' }
 
         $staged = Join-Path $scratch ([guid]::NewGuid().ToString('N') + '.glb')
-        $arguments = '-B "{0}" "{1}" "{2}"' -f $generatorScript, $photo.FileName, $staged
+        $arguments = '-B "{0}" "{1}" "{2}"' -f $generatorScript, $photoPath, $staged
         if (!$ui.BakePhotoTexture.IsChecked) { $arguments += ' --geometry-only' }
         if ($ui.DraftPhotoMesh.IsChecked) { $arguments += ' --mesh-resolution 96' }
         Start-StudioJob $generatorPython $arguments @{
@@ -578,6 +615,14 @@ function Start-PhotoGeneration {
         } 'Generating a GLB from the photo. This can take several minutes...'
     } catch {
         Set-Status $_.Exception.Message
+    }
+}
+
+function Import-ModelFile([string]$path) {
+    switch ([IO.Path]::GetExtension($path)) {
+        '.glb' { Set-GlbModel $path }
+        { $_ -in @('.png', '.jpg', '.jpeg') } { Start-PhotoGeneration $path }
+        default { Set-Status 'Choose a GLB, PNG, or JPEG file.' }
     }
 }
 
@@ -611,7 +656,7 @@ $timer.Interval = [TimeSpan]::FromMilliseconds(200)
 
 $timer.Add_Tick({
     $job = $script:job
-    if (!$job.Process.HasExited) { return }
+    if (!$job -or !$job.Process.HasExited) { return }
     $timer.Stop()
     try {
         if ($job.Kind -eq 'Chat') {
@@ -621,10 +666,7 @@ $timer.Add_Tick({
                 throw $detail
             }
             $reply = Get-Content -LiteralPath $job.Output -Raw -Encoding UTF8 | ConvertFrom-Json
-            if ($script:thinkingBubble -and $ui.ChatMessages.Children.Contains($script:thinkingBubble)) {
-                $ui.ChatMessages.Children.Remove($script:thinkingBubble)
-                $script:thinkingBubble = $null
-            }
+            $ui.ChatThinking.Visibility = 'Collapsed'
             $changed = Apply-AssistantChanges $reply.changes
             $script:chatHistory += @(
                 @{ role = 'user'; content = $job.Prompt },
@@ -653,7 +695,7 @@ $timer.Add_Tick({
         }
         if ($job.Kind -eq 'Setup') {
             if (!(Test-PhotoGenerator)) { throw 'Setup did not produce all required photo generator files.' }
-            Set-Status 'Photo generator ready. Click Generate GLB from Photo to begin.'
+            Set-Status 'Photo generator ready. Use the import icon to choose a photo.'
             return
         }
         if ($job.Kind -eq 'Orientation') {
@@ -675,25 +717,24 @@ $timer.Add_Tick({
         Show-OrientationEditor $false
         Set-Status 'Preview ready'
     } catch {
-        Set-Status $_.Exception.Message
         if ($job.Kind -eq 'Chat') {
-            if ($script:thinkingBubble -and $ui.ChatMessages.Children.Contains($script:thinkingBubble)) {
-                $ui.ChatMessages.Children.Remove($script:thinkingBubble)
-                $script:thinkingBubble = $null
-            }
-            Add-ChatMessage ("I couldn't complete that request. " + $_.Exception.Message)
-        }
+            Add-ChatMessage "I couldn't get a reply. Check your API key and connection, then try again."
+        } else { Set-Status $_.Exception.Message }
     } finally {
         $job.Process.Dispose()
         $script:job = $null
         $ui.Render.IsEnabled = $true
-        $ui.GenerateFromPhoto.IsEnabled = $true
+        $ui.ImportModel.IsEnabled = $true
         $ui.SetupPhotoGenerator.IsEnabled = $true
         $ui.Orient.IsEnabled = $true
         $ui.Model.IsEnabled = $true
-        $ui.ImportGlb.IsEnabled = $true
         $ui.ChatSend.IsEnabled = $true
         $ui.ChatInput.IsEnabled = $true
+        $ui.ChatThinking.Visibility = 'Collapsed'
+        if ($script:customPreviewPending) {
+            $script:customPreviewPending = $false
+            Request-CustomPreview
+        }
     }
 })
 
@@ -704,15 +745,16 @@ $ui.ChatKeyToggle.Add_Click({
 })
 $ui.ChatSaveKey.Add_Click({
     try { Save-ChatApiKey; Set-Status 'OpenRouter key saved securely for this Windows account.' }
-    catch { Set-Status $_.Exception.Message; Add-ChatMessage $_.Exception.Message }
+    catch { Add-ChatMessage "I couldn't save your API key. Enter it again and retry." }
 })
 $ui.ChatSend.Add_Click({
+    if ($script:job) { return }
     $prompt = $ui.ChatInput.Text.Trim()
     if (!$prompt) { return }
     $ui.ChatInput.Clear()
     Add-ChatMessage $prompt $true
     try { Start-ChatRequest $prompt }
-    catch { Set-Status $_.Exception.Message; Add-ChatMessage ("I couldn't start that request. " + $_.Exception.Message) }
+    catch { Add-ChatMessage "I couldn't start the chat. Check your API key and try again." }
 })
 $ui.ChatInput.Add_PreviewKeyDown({
     param($sender, $eventArgs)
@@ -746,13 +788,14 @@ $ui.RotateSurface.Add_MouseMove({
     $ui.Tilt.Value = ((($tilt + 180) % 360 + 360) % 360) - 180
 })
 $ui.RotateSurface.Add_MouseLeftButtonUp({ param($sender, $eventArgs) $sender.ReleaseMouseCapture() })
-$ui.ImportGlb.Add_Click({
-    $dialog = New-Object Microsoft.Win32.OpenFileDialog -Property @{ Filter = 'glTF binary (*.glb)|*.glb' }
-    if ($dialog.ShowDialog($window)) {
-        Set-GlbModel $dialog.FileName
+$ui.ImportModel.Add_Click({
+    if ($script:job) { return }
+    $dialog = New-Object Microsoft.Win32.OpenFileDialog -Property @{
+        Title = 'Import a GLB or a photo'
+        Filter = 'GLB and photos (*.glb;*.png;*.jpg;*.jpeg)|*.glb;*.png;*.jpg;*.jpeg|GLB (*.glb)|*.glb|Photos (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg'
     }
+    if ($dialog.ShowDialog($window)) { Import-ModelFile $dialog.FileName }
 })
-$ui.GenerateFromPhoto.Add_Click({ Start-PhotoGeneration })
 $ui.SetupPhotoGenerator.Add_Click({
     if ($script:job) { return }
     try {

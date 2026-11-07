@@ -24,7 +24,6 @@ try {
                 model_id = Get-NullableEnumSchema @('BOWL', 'VASE', 'CUP')
                 glaze_id = Get-NullableEnumSchema @('CELADON', 'COBALT', 'OATMEAL', 'CUSTOM')
                 custom_color_srgb = $nullableString
-                recipe_id_or_composition = $nullableString
                 nominal_thickness_mm = $nullableNumber
                 peak_temperature_C = $nullableNumber
                 atmosphere = Get-NullableEnumSchema @('oxidation', 'neutral', 'reduction', 'unspecified')
@@ -42,7 +41,7 @@ try {
                 clear_fields = @{
                     type = 'array'
                     items = @{ type = 'string'; enum = @(
-                        'recipe_id_or_composition', 'nominal_thickness_mm', 'peak_temperature_C',
+                        'nominal_thickness_mm', 'peak_temperature_C',
                         'atmosphere_notes', 'cone', 'heat_up_rate_C_per_hour', 'peak_soak_minutes',
                         'firing_schedule', 'cooling_rate_C_per_hour', 'cooling_profile', 'clay_body',
                         'fired_clay_color_srgb', 'thickness_map_path', 'firing_geometry_notes'
@@ -50,7 +49,7 @@ try {
                 }
             }
             required = @(
-                'model_id', 'glaze_id', 'custom_color_srgb', 'recipe_id_or_composition',
+                'model_id', 'glaze_id', 'custom_color_srgb',
                 'nominal_thickness_mm', 'peak_temperature_C', 'atmosphere', 'atmosphere_notes',
                 'cone', 'heat_up_rate_C_per_hour', 'peak_soak_minutes', 'firing_schedule',
                 'cooling_rate_C_per_hour', 'cooling_profile', 'clay_body', 'fired_clay_color_srgb',
@@ -83,6 +82,9 @@ try {
     $content = $response.choices[0].message.content
     if ([string]::IsNullOrWhiteSpace($content)) { throw 'The assistant returned no message.' }
     $result = $content | ConvertFrom-Json
+    if ($result.reply -isnot [string] -or [string]::IsNullOrWhiteSpace($result.reply)) {
+        throw 'The assistant returned an empty reply.'
+    }
     $encoded = $result | ConvertTo-Json -Depth 10
     [IO.File]::WriteAllText($ResponsePath, $encoded, [Text.UTF8Encoding]::new($false))
 } catch {

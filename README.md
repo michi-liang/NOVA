@@ -5,12 +5,12 @@ NOVA is a Windows desktop app for previewing pottery with Blender. Choose a buil
 ## Open the desktop app
 
 1. Install Blender 5.2 or newer. Double-click `Start NOVA.cmd`. NOVA looks for Blender in standard install locations. For a custom install, use **Additional Options → Locate Blender**, or set the `NOVA_BLENDER` environment variable to the full path of `blender.exe`.
-2. Choose a built-in model or click **Import GLB**. Select Jade Celadon, Cobalt Blue, Speckled Oatmeal, or choose **Custom color** and pick a shade from the color wheel. If known, enter the recipe, nominal glaze thickness in millimeters, and peak firing temperature in Celsius.
+2. Choose a built-in model or use the import icon to select a `.glb` or generate one from a photo. Select Jade Celadon, Cobalt Blue, Speckled Oatmeal, or choose **Custom color** and pick a shade from the color wheel. The swatch and 3D preview update as you change the color or glaze opacity. At **Clear**, the preview shows the clay underneath. If known, enter the nominal glaze thickness in millimeters and peak firing temperature in Celsius.
 3. Open the **Additional Options** tab to enter kiln atmosphere, cone, heating and cooling information, peak hold, clay body, a thickness map path, or firing geometry notes. The setup always contains one glaze layer.
 4. Click **Orient Model** to open a live 3D view. Drag to turn and tilt the piece, or use the Turn, Tilt, and Roll sliders. Click **Render Preview** to apply that orientation in the studio. **Reset** restores the original orientation.
 5. Click **Save PNG** to export the last preview. **Export Setup** writes the current inputs and model orientation to a versioned JSON file for use by a future prediction component. Leave unknown values blank to export them as `null`.
 
-Blender runs in the background with the same camera, softboxes, and backdrop for every preview. Recipe, thickness, firing, and other advanced values are recorded in the setup JSON. The rendered appearance comes from the selected preset or custom color material.
+Blender runs in the background with the same camera, softboxes, and backdrop for every preview. Thickness, firing, and other advanced values are recorded in the setup JSON. **Render Preview** applies the selected color and opacity to the Blender material.
 
 ## NOVA assistant
 
@@ -19,7 +19,7 @@ The assistant appears to the right of the preview. Click **API key…** and save
 ## Generate a model from a photo
 
 1. Install 64-bit Python for Windows with `python` available on your PATH. In NOVA, open **Additional Options → Set Up Photo Generator**. Setup needs internet access and several GB of disk space for the model and Python dependencies. Generation runs locally after setup.
-2. Click **Generate GLB from Photo**, pick a PNG or JPEG, and choose where to save the generated `.glb`. NOVA selects the completed model automatically.
+2. Click the import icon, pick a PNG or JPEG, and choose where to save the generated `.glb`. NOVA selects the completed model automatically.
 3. Orient the model if needed, choose a glaze, and click **Render Preview**.
 
 NOVA skips photo texture baking by default because the studio applies a new glaze. Under **Additional Options**, enable **Bake photo texture into GLB (slower)** to include the photo texture, or enable **Draft photo mesh** to generate a lower-detail mesh faster. The standard mesh uses a 128³ sampling grid and the draft uses 96³.

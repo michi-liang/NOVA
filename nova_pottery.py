@@ -59,7 +59,12 @@ IMPORT_DATA = (
 )
 
 
-def glaze_material(key, custom_color_srgb="#C84B32"):
+def srgb_to_linear(channels):
+    return tuple(channel / 12.92 if channel <= .04045 else ((channel + .055) / 1.055) ** 2.4
+                 for channel in channels)
+
+
+def glaze_material(key, custom_color_srgb="#C84B32", opacity=1.0):
     if key == "CUSTOM":
         if not isinstance(custom_color_srgb, str) or len(custom_color_srgb) != 7 or custom_color_srgb[0] != "#":
             raise ValueError("Custom glaze color must use #RRGGBB format.")
@@ -67,12 +72,14 @@ def glaze_material(key, custom_color_srgb="#C84B32"):
             channels = [int(custom_color_srgb[index:index + 2], 16) / 255 for index in (1, 3, 5)]
         except ValueError as error:
             raise ValueError("Custom glaze color must use #RRGGBB format.") from error
-        linear = [channel / 12.92 if channel <= .04045 else ((channel + .055) / 1.055) ** 2.4 for channel in channels]
-        dark = tuple(channel * .58 for channel in linear)
-        light = tuple(linear)
+        light = srgb_to_linear(channels)
+        dark = tuple(channel * .58 for channel in light)
         roughness, coat = .23, .36
         label = f"Custom Glaze {custom_color_srgb.upper()}"
         cache_key = f"CUSTOM:{custom_color_srgb.upper()}"
+        if opacity < 1:
+            label += f" ({opacity:.0%})"
+            cache_key += f":{opacity!r}"
     else:
         label, _, dark, light, roughness, coat = GLAZES[key]
         cache_key = key
@@ -143,6 +150,23 @@ def glaze_material(key, custom_color_srgb="#C84B32"):
         color = mix.outputs[0]
 
     link(color, shader.inputs["Base Color"])
+    if key == "CUSTOM" and opacity < 1:
+        clay_color = srgb_to_linear((198 / 255, 165 / 255, 138 / 255))
+        clay = nodes.new("ShaderNodeBsdfPrincipled")
+        clay.label = "Unglazed clay"
+        clay.location = (480, -450)
+        clay.inputs["Base Color"].default_value = (*clay_color, 1)
+        clay.inputs["Roughness"].default_value = .72
+        coverage = nodes.new("ShaderNodeMixShader")
+        coverage.label = "Glaze opacity"
+        coverage.location = (790, 100)
+        coverage.inputs[0].default_value = opacity
+        output = nodes.get("Material Output")
+        output.location = (1010, 100)
+        link(clay.outputs["BSDF"], coverage.inputs[1])
+        link(shader.outputs["BSDF"], coverage.inputs[2])
+        link(coverage.outputs[0], output.inputs["Surface"])
+        material.diffuse_color = (*(base + (tint - base) * opacity for base, tint in zip(clay_color, light)), 1)
     return material
 
 
@@ -153,7 +177,7 @@ def apply_glaze(mesh, material):
 
 def update_glaze(settings, _context):
     if settings.model_collection and settings.model_collection.objects:
-        material = glaze_material(settings.glaze, settings.custom_color_srgb)
+        material = glaze_material(settings.glaze, settings.custom_color_srgb, settings.custom_glaze_opacity)
         for obj in settings.model_collection.objects:
             apply_glaze(obj.data, material)
 
@@ -272,7 +296,7 @@ def replace_model(settings, objects, label):
         # The importer bakes transforms into the vertices, so all parts can
         # be fitted together without changing their relative placement.
         fit = fit_model(objects)
-        material = glaze_material(settings.glaze, settings.custom_color_srgb)
+        material = glaze_material(settings.glaze, settings.custom_color_srgb, settings.custom_glaze_opacity)
         for obj in objects:
             obj.matrix_world = fit
             apply_glaze(obj.data, material)
@@ -356,6 +380,7 @@ class NOVA_PG_settings(bpy.types.PropertyGroup):
         update=update_glaze,
     )
     custom_color_srgb: bpy.props.StringProperty(default="#C84B32", update=update_glaze)
+    custom_glaze_opacity: bpy.props.FloatProperty(default=1, min=0, max=1, update=update_glaze)
 
 
 class NOVA_OT_open_studio(bpy.types.Operator):

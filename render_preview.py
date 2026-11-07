@@ -21,6 +21,7 @@ def load_model(request):
     model = request["model"]
     glaze = request["glaze_id"]
     custom_color = request.get("custom_color_srgb", "#C84B32")
+    opacity = request.get("custom_glaze_opacity", 1)
     if glaze == "CUSTOM":
         layers = [{"glaze_id": glaze, "order": 1, "color_srgb": custom_color}]
         if not isinstance(custom_color, str) or len(custom_color) != 7 or custom_color[0] != "#":
@@ -29,6 +30,8 @@ def load_model(request):
             int(custom_color[1:], 16)
         except ValueError as error:
             raise ValueError("Custom glaze color must use #RRGGBB format.") from error
+        if not isinstance(opacity, (int, float)) or not 0 <= opacity <= 1:
+            raise ValueError("Custom glaze opacity must be between 0 and 1.")
     else:
         layers = [{"glaze_id": glaze, "order": 1}]
     if (glaze not in GLAZES and glaze != "CUSTOM") or request["inputs"]["layers"] != layers:
@@ -38,7 +41,9 @@ def load_model(request):
     bpy.ops.nova_pottery.open_studio()
     scene = bpy.context.scene
     settings = scene.nova_pottery
-    settings.custom_color_srgb = custom_color
+    if glaze == "CUSTOM":
+        settings.custom_color_srgb = custom_color
+        settings.custom_glaze_opacity = opacity
     settings.glaze = glaze
 
     if model["kind"] == "glb":

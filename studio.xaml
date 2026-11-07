@@ -20,6 +20,64 @@
             <Setter Property="Padding" Value="11,6"/>
             <Setter Property="MinHeight" Value="32"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="#F5F3ED"/>
+            <Setter Property="BorderBrush" Value="#D3D7CE"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonFace" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonFace" Property="Background" Value="#E7EEE5"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonFace" Property="Background" Value="#D8E5D8"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ButtonFace" Property="Opacity" Value="0.5"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Margin" Value="0,0,3,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabFace" CornerRadius="10,10,0,0" Background="Transparent" Padding="{TemplateBinding Padding}"
+                                BorderThickness="1,1,1,0" BorderBrush="Transparent" TextElement.Foreground="#F3F4F1" TextElement.FontWeight="SemiBold">
+                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabFace" Property="Background" Value="#454C47"/></Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabFace" Property="Background" Value="#FFFEFB"/>
+                                <Setter TargetName="TabFace" Property="BorderBrush" Value="#141614"/>
+                                <Setter TargetName="TabFace" Property="TextElement.Foreground" Value="#24332B"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TabControl">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border CornerRadius="11,11,0,0" Background="#303632" BorderBrush="#141614" BorderThickness="1,1,1,0" Padding="7,6,7,0">
+                                <TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="0"/>
+                            </Border>
+                            <ContentPresenter Grid.Row="1" x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="TextBox">
             <Setter Property="Padding" Value="6,4"/>
@@ -51,7 +109,7 @@
                 <ColumnDefinition Width="310"/>
             </Grid.ColumnDefinitions>
 
-            <Border Background="#FFFEFB" BorderBrush="#DDDCD4" BorderThickness="1" CornerRadius="12">
+            <Border Background="#FFFEFB" BorderBrush="#DDDCD4" BorderThickness="1,0,1,1" CornerRadius="12">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -65,17 +123,23 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="148"/>
                                 </Grid.ColumnDefinitions>
-                                <ComboBox x:Name="Model" AutomationProperties.Name="Built-in pottery model" SelectedIndex="0">
+                                <ComboBox x:Name="Model" AutomationProperties.Name="Built-in pottery model" SelectedIndex="0" VerticalAlignment="Top">
                                     <ComboBoxItem Tag="BOWL">Serving Bowl</ComboBoxItem>
                                     <ComboBoxItem Tag="VASE">Bud Vase</ComboBoxItem>
                                     <ComboBoxItem Tag="CUP">Tea Cup</ComboBoxItem>
                                 </ComboBox>
-                                <Button Grid.Column="1" x:Name="ImportGlb" Content="Import GLB…" Margin="8,0,0,0"/>
+                                <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                    <Button x:Name="ImportModel" ToolTip="Import GLB or photo to generate GLB" AutomationProperties.Name="Import GLB or photo to generate GLB"
+                                            HorizontalAlignment="Center">
+                                        <Path Data="M8,1 L8,10 M4,6 L8,10 L12,6 M1,10 L1,15 L15,15 L15,10" Width="16" Height="16"
+                                              Stroke="#324A3C" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                    </Button>
+                                    <TextBlock Text="Import GLB or photo to generate GLB" FontSize="11" Foreground="#52625A" TextAlignment="Center" Margin="0,4,0,0"/>
+                                </StackPanel>
                             </Grid>
                             <TextBlock x:Name="ModelFile" Foreground="#4F6458" FontSize="12" Margin="0,5,0,0" Visibility="Collapsed"/>
-                            <Button x:Name="GenerateFromPhoto" Content="Generate GLB from Photo…" HorizontalAlignment="Left" Margin="0,8,0,0"/>
 
                             <Separator Margin="0,12,0,11" Background="#DDDCD4"/>
                             <TextBlock Style="{StaticResource Section}" Text="Glaze composition"/>
@@ -110,14 +174,26 @@
                             </RadioButton>
                             <Border x:Name="CustomColorPanel" Visibility="Collapsed" Background="#F5F2EB" CornerRadius="8" Padding="8" Margin="0,8,0,0">
                                 <StackPanel>
-                                    <Image x:Name="CustomColorWheel" Width="190" Height="190" HorizontalAlignment="Left" Stretch="Fill" Cursor="Cross" AutomationProperties.Name="Custom glaze color wheel"/>
-                                    <TextBlock Style="{StaticResource Field}" Text="Brightness"/>
-                                    <Slider x:Name="CustomBrightness" Minimum="0" Maximum="1" Value="0.784" Width="190" HorizontalAlignment="Left" AutomationProperties.Name="Custom color brightness"/>
-                                    <TextBlock x:Name="CustomColorHex" Text="#C84B32" FontSize="12" Margin="4,3,0,0"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="174"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <Image x:Name="CustomColorWheel" Width="174" Height="174" Stretch="Fill" Cursor="Cross" AutomationProperties.Name="Custom glaze color wheel"/>
+                                        <StackPanel Grid.Column="1" Margin="9,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Glaze preview" FontWeight="SemiBold" FontSize="12"/>
+                                            <Border Margin="0,5,0,4" Height="48" CornerRadius="6" BorderBrush="#C7B29F" BorderThickness="1" Background="#C6A58A">
+                                                <Border x:Name="CustomColorPreview" CornerRadius="5" Background="#C84B32"/>
+                                            </Border>
+                                            <TextBlock x:Name="CustomColorHex" Text="#C84B32" FontSize="12"/>
+                                            <TextBlock x:Name="CustomOpacityLabel" Text="100% opacity" FontSize="11" Foreground="#52625A"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock Style="{StaticResource Field}" Text="Glaze opacity"/>
+                                    <Slider x:Name="CustomOpacity" Minimum="0" Maximum="1" Value="1" SmallChange="0.01" LargeChange="0.1" AutomationProperties.Name="Custom glaze opacity"/>
+                                    <DockPanel Margin="0,2,0,0">
+                                        <TextBlock DockPanel.Dock="Right" Text="Full opacity" FontSize="11"/>
+                                        <TextBlock Text="Clear" FontSize="11"/>
+                                    </DockPanel>
                                 </StackPanel>
                             </Border>
-                            <Label Target="{Binding ElementName=Recipe}" Content="Recipe ID or composition notes (optional)" Padding="0" Margin="0,10,0,4" FontSize="12"/>
-                            <TextBox x:Name="Recipe" ToolTip="Enter a product or recipe ID, or known oxide or ingredient proportions."/>
 
                             <Separator Margin="0,12,0,10" Background="#DDDCD4"/>
                             <TextBlock Style="{StaticResource Section}" Text="Application and firing"/>
@@ -136,7 +212,7 @@
                                     <TextBox x:Name="Temperature" ToolTip="Peak firing temperature in degrees Celsius. Leave blank if unknown."/>
                                 </StackPanel>
                             </Grid>
-                            <TextBlock Text="Leave unknown values blank. The preview shows the selected preset or custom glaze color; recipe, thickness, and firing inputs are saved in the setup." Foreground="#52625A" FontSize="12" Margin="0,7,0,0"/>
+                            <TextBlock Text="Leave unknown values blank. Thickness and firing inputs are saved in the setup." Foreground="#52625A" FontSize="12" Margin="0,7,0,0"/>
 
                         </StackPanel>
                     </ScrollViewer>
@@ -233,6 +309,9 @@
                                 </Viewport3D>
                                 <Border x:Name="RotateSurface" Background="Transparent" Cursor="SizeAll"
                                         ToolTip="Drag to turn and tilt. Use the Roll slider to rotate sideways."/>
+                                <Border Background="#F5F2EB" CornerRadius="6" Padding="8,5" Margin="10" VerticalAlignment="Top" HorizontalAlignment="Left" IsHitTestVisible="False">
+                                    <TextBlock Text="Live model preview" Foreground="#52625A" FontSize="11"/>
+                                </Border>
                                 <Grid Grid.Row="1" Background="#F5F2EB" Margin="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -303,10 +382,13 @@
                     </Border>
                     <Border Grid.Row="2" Background="#F5F2EB" CornerRadius="8" Padding="8">
                         <ScrollViewer x:Name="ChatScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <StackPanel x:Name="ChatMessages">
-                                <Border Background="#FFFEFB" CornerRadius="8" Padding="9" Margin="0,0,0,7" HorizontalAlignment="Left">
-                                    <TextBlock Text="Connect your OpenRouter key to get started. I can help with pottery and adjust settings when you ask." FontSize="12"/>
-                                </Border>
+                            <StackPanel>
+                                <StackPanel x:Name="ChatMessages">
+                                    <Border Background="#FFFEFB" CornerRadius="8" Padding="9" Margin="0,0,0,7" HorizontalAlignment="Left">
+                                        <TextBlock Text="Hi, I’m NOVA. How can I help with your pottery today? Ask me about a glaze or tell me what you’d like to change." FontSize="12" TextWrapping="Wrap"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock x:Name="ChatThinking" Text="Thinking…" Visibility="Collapsed" Foreground="#52625A" FontSize="12" Margin="8,2"/>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
