@@ -1,0 +1,52 @@
+{
+  "reconstruction": {
+    "fea_voxel_size_m": 0.01,
+    "prepared_voxel_size_m": 0.01,
+    "adjustments": [
+      "prepared: adjusted resolution from 0.0001 to 0.01 m; wall thickness, scale, and up axis unchanged"
+    ]
+  },
+  "nodes": 49815,
+  "tetrahedra": 166134,
+  "max_von_mises_pa": 199319191.0630395,
+  "max_displacement_m": 0.13653016531063825,
+  "color_scale": {
+    "type": "log1p",
+    "log_range_decades": 3.0,
+    "anchors_pa": {
+      "blue": 0.0,
+      "cyan": 922457.4467663066,
+      "green": 6109816.877229014,
+      "yellow": 35280482.640879564,
+      "red": 199319191.0630395
+    }
+  },
+  "settings": {
+    "log_range_decades": 3.0,
+    "geometry_mode": "vase",
+    "wall_thickness_m": 0.02,
+    "prepared_voxel_size_m": 0.0001,
+    "model_scale": 1.0,
+    "young_modulus_pa": 2000000000.0,
+    "poisson_ratio": 0.3,
+    "density_kg_m3": 1200.0,
+    "gravity_m_s2": 9.81,
+    "voxel_size_m": 0.01,
+    "up_axis": "z",
+    "fixed_base_depth_m": 0.005,
+    "top_load_depth_m": 0.005,
+    "force_x_n": 0.0,
+    "force_y_n": 0.0,
+    "force_z_n": 20000.0,
+    "max_voxels": 30000
+  },
+  "geometry": "convex-section hollow vase reconstruction",
+  "stress_components": [
+    "xx",
+    "yy",
+    "zz",
+    "xy",
+    "yz",
+    "zx"
+  ]
+}
