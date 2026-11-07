@@ -8,6 +8,8 @@ foreach ($name in @(
     'Model', 'ModelFile', 'ImportModel', 'SetupPhotoGenerator',
     'Celadon', 'Cobalt', 'Oatmeal', 'CustomGlaze', 'CustomSwatch', 'CustomColorPanel', 'CustomColorWheel',
     'CustomOpacity', 'CustomOpacityLabel', 'CustomColorHex', 'CustomColorPreview',
+    'PredictionTop', 'PredictionBase', 'PredictGlaze', 'ImportPrediction', 'PredictionResult',
+    'PredictionSwatch', 'PredictionColor', 'PredictionStatus',
     'Thickness', 'Temperature', 'OptionsTabs', 'AdditionalTabs', 'Atmosphere', 'AtmosphereNotes',
     'Cone', 'Ramp', 'Soak', 'Schedule', 'CoolingRate', 'CoolingProfile', 'Clay',
     'ClayColor', 'ThicknessMap', 'Geometry', 'LocateBlender', 'BlenderPath',
@@ -26,6 +28,7 @@ foreach ($name in @(
 
 $script:customColor = '#C84B32'
 $script:customPreviewPending = $false
+$script:glazePrediction = $null
 function Get-HsvRgb([double]$hue, [double]$saturation, [double]$value) {
     $chroma = $value * $saturation
     $h = (($hue % 360) + 360) % 360 / 60
@@ -191,11 +194,16 @@ function Get-Setup {
 
     $customGlazeColor = $null
     $appearanceSource = 'blender_preset'
+    $prediction = $null
     $layer = [ordered]@{ glaze_id = [string]$glaze.Tag; order = 1 }
     if ($glaze.Tag -eq 'CUSTOM') {
         $customGlazeColor = $ui.CustomColorHex.Text
         $appearanceSource = 'blender_custom'
         $layer.color_srgb = $customGlazeColor
+        if ($script:glazePrediction -and $script:glazePrediction.base_color_srgb -eq $customGlazeColor) {
+            $prediction = $script:glazePrediction
+            $appearanceSource = 'glaze_prediction'
+        }
     }
 
     [ordered]@{
@@ -205,6 +213,7 @@ function Get-Setup {
         custom_color_srgb = $customGlazeColor
         custom_glaze_opacity = if ($glaze.Tag -eq 'CUSTOM') { $ui.CustomOpacity.Value } else { $null }
         appearance_source = $appearanceSource
+        glaze_prediction = $prediction
         inputs = [ordered]@{
             nominal_thickness_mm = Get-OptionalNumber $ui.Thickness 'Glaze thickness'
             peak_temperature_C = Get-OptionalNumber $ui.Temperature 'Peak firing temperature'
@@ -227,6 +236,75 @@ function Get-Setup {
 
 function Write-Setup($setup, [string]$path) {
     [IO.File]::WriteAllText($path, ($setup | ConvertTo-Json -Depth 6))
+}
+
+function Get-GlazePredictionRequest {
+    $top = $ui.PredictionTop.Text.Trim()
+    $base = $ui.PredictionBase.Text.Trim()
+    if (!$top -or !$base) { throw 'Enter a top glaze ID and a base glaze ID.' }
+    $cone = Get-OptionalText $ui.Cone
+    $clay = Get-OptionalText $ui.Clay
+    $atmosphere = $ui.Atmosphere.SelectedItem.Tag
+    [ordered]@{
+        top_glaze_id = $top
+        base_glaze_id = $base
+        application_order = 'top_over_base'
+        firing_cone = if (!$cone) { 'Cone 6' } elseif ($cone -match '^\d+$') { "Cone $cone" } else { $cone }
+        clay_body = if ($clay) { $clay } else { 'white stoneware' }
+        atmosphere = if ($atmosphere) { $atmosphere } else { 'oxidation' }
+        top_coats = 2
+        base_coats = 2
+        pottery_surface_region = 'outside'
+    }
+}
+
+function Set-PredictedGlaze($response, $request) {
+    if ($response._demo_warning -or $response.evidence.appearance_basis -like 'DEMO*' -or
+        $response.appearance.appearance_basis -like 'DEMO*') {
+        throw 'This is a demo response. Load a real prediction JSON or use Predict Color.'
+    }
+    $hex = $response.appearance.base_color_srgb
+    if ($hex -isnot [string] -or $hex -notmatch '^#[0-9a-fA-F]{6}$') {
+        throw 'The response has no predicted color in appearance.base_color_srgb.'
+    }
+    $hex = $hex.ToUpperInvariant()
+    $source = if ($request) { 'api' } else { 'imported_response' }
+    $pair = if ($request) { $request } else { $response.glaze_pair }
+    $script:glazePrediction = [ordered]@{
+        source = $source
+        base_color_srgb = $hex
+        glaze_pair = $pair
+    }
+
+    $ui.CustomOpacity.Value = 1
+    Set-CustomColorFromHex $hex
+    $ui.PredictionSwatch.Background = [Windows.Media.SolidColorBrush]::new(
+        [Windows.Media.Color][Windows.Media.ColorConverter]::ConvertFromString($hex))
+    $ui.PredictionColor.Text = $hex
+    $ui.PredictionResult.Visibility = 'Visible'
+    $label = if ($pair.top_glaze_id -and $pair.base_glaze_id) {
+        "$($pair.top_glaze_id) over $($pair.base_glaze_id)"
+    } else { 'Imported prediction' }
+    $ui.PredictionStatus.Text = "$label. Applied to Studio. Click Render Preview for the Blender render."
+    $ui.PredictionStatus.BringIntoView()
+}
+
+function Start-GlazePrediction {
+    if ($script:job) { return }
+    try {
+        if ([string]::IsNullOrWhiteSpace($env:GLAZE_API_URL) -and [string]::IsNullOrWhiteSpace($env:GLAZE_API_TOKEN)) {
+            throw 'Set GLAZE_API_TOKEN privately before starting NOVA, or load a prediction JSON.'
+        }
+        $request = Get-GlazePredictionRequest
+        $prefix = Join-Path $scratch ([guid]::NewGuid().ToString('N') + '-prediction')
+        Write-Setup $request "$prefix-request.json"
+        $helper = Join-Path $PSScriptRoot 'predict_glaze.ps1'
+        $arguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}" "{1}" "{2}"' -f $helper, "$prefix-request.json", "$prefix-response.json"
+        Start-StudioJob (Join-Path $PSHOME 'powershell.exe') $arguments @{
+            Kind = 'Prediction'; Tool = 'Glaze predictor'; Output = "$prefix-response.json"; Request = $request
+        } 'Predicting the fired glaze color...'
+        $ui.PredictionStatus.Text = 'Predicting color...'
+    } catch { $ui.PredictionStatus.Text = $_.Exception.Message }
 }
 
 function Add-ChatMessage([string]$message, [bool]$fromUser = $false) {
@@ -402,6 +480,8 @@ Supported models: BOWL, VASE, CUP. Supported glaze choices: CELADON, COBALT, OAT
     $ui.ImportModel.IsEnabled = $false
     $ui.FeaRun.IsEnabled = $false
     $ui.FeaSetup.IsEnabled = $false
+    $ui.PredictGlaze.IsEnabled = $false
+    $ui.ImportPrediction.IsEnabled = $false
     $ui.ChatThinking.Visibility = 'Visible'
     $ui.ChatScroll.ScrollToEnd()
     $timer.Start()
@@ -634,6 +714,8 @@ function Start-StudioJob([string]$program, [string]$arguments, [hashtable]$job, 
     $ui.ChatInput.IsEnabled = $false
     $ui.FeaRun.IsEnabled = $false
     $ui.FeaSetup.IsEnabled = $false
+    $ui.PredictGlaze.IsEnabled = $false
+    $ui.ImportPrediction.IsEnabled = $false
     if ($job.Kind -in @('Photo', 'Orientation')) {
         $ui.Model.IsEnabled = $false
     }
@@ -657,7 +739,10 @@ function Start-Preview {
             'CELADON' { 'Jade Celadon' }
             'COBALT' { 'Cobalt Blue' }
             'OATMEAL' { 'Speckled Oatmeal' }
-            'CUSTOM' { "Custom $($setup.custom_color_srgb) / $($setup.custom_glaze_opacity.ToString('P0')) opacity" }
+            'CUSTOM' {
+                $colorSource = if ($setup.glaze_prediction) { 'Predicted' } else { 'Custom' }
+                "$colorSource $($setup.custom_color_srgb) / $($setup.custom_glaze_opacity.ToString('P0')) opacity"
+            }
         }
         $prefix = Join-Path $scratch ([guid]::NewGuid().ToString('N'))
         $request = "$prefix.json"
@@ -791,6 +876,12 @@ $timer.Add_Tick({
             Set-Status 'GLB generated and selected. Click Render Preview to apply the glaze.'
             return
         }
+        if ($job.Kind -eq 'Prediction') {
+            $response = Get-Content -LiteralPath $job.Output -Raw -Encoding UTF8 | ConvertFrom-Json
+            Set-PredictedGlaze $response $job.Request
+            Set-Status 'Predicted color applied'
+            return
+        }
         if ($job.Kind -eq 'Setup') {
             if (!(Test-PhotoGenerator)) { throw 'Setup did not produce all required photo generator files.' }
             Set-Status 'Photo generator ready. Use the import icon to choose a photo.'
@@ -836,6 +927,7 @@ $timer.Add_Tick({
         } else {
             Set-Status $_.Exception.Message
             if ($job.Kind -in @('FEA', 'FEASetup')) { $ui.FeaResult.Text = $_.Exception.Message }
+            if ($job.Kind -eq 'Prediction') { $ui.PredictionStatus.Text = $_.Exception.Message }
         }
     } finally {
         $job.Process.Dispose()
@@ -849,12 +941,25 @@ $timer.Add_Tick({
         $ui.ChatInput.IsEnabled = $true
         $ui.FeaRun.IsEnabled = $true
         $ui.FeaSetup.IsEnabled = $true
+        $ui.PredictGlaze.IsEnabled = $true
+        $ui.ImportPrediction.IsEnabled = $true
         $ui.ChatThinking.Visibility = 'Collapsed'
         if ($script:customPreviewPending) {
             $script:customPreviewPending = $false
             Request-CustomPreview
         }
     }
+})
+
+$ui.PredictGlaze.Add_Click({ Start-GlazePrediction })
+$ui.ImportPrediction.Add_Click({
+    if ($script:job) { return }
+    $dialog = New-Object Microsoft.Win32.OpenFileDialog -Property @{ Filter = 'Prediction JSON (*.json)|*.json' }
+    if (!$dialog.ShowDialog($window)) { return }
+    try {
+        $response = Get-Content -LiteralPath $dialog.FileName -Raw -Encoding UTF8 | ConvertFrom-Json
+        Set-PredictedGlaze $response $null
+    } catch { $ui.PredictionStatus.Text = $_.Exception.Message }
 })
 
 $ui.ChatKeyToggle.Add_Click({

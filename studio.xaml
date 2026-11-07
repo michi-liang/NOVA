@@ -196,6 +196,36 @@
                                 </StackPanel>
                             </Border>
 
+                            <Expander Header="Predict glaze color" Margin="0,12,0,0">
+                                <StackPanel Margin="0,6,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <Label Target="{Binding ElementName=PredictionTop}" Content="Top glaze ID" Padding="0" Margin="0,0,0,4" FontSize="12"/>
+                                            <ComboBox x:Name="PredictionTop" IsEditable="True" SelectedIndex="0">
+                                                <ComboBoxItem Content="SW-183"/><ComboBoxItem Content="SW-253"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <Label Target="{Binding ElementName=PredictionBase}" Content="Base glaze ID" Padding="0" Margin="0,0,0,4" FontSize="12"/>
+                                            <ComboBox x:Name="PredictionBase" IsEditable="True" SelectedIndex="1">
+                                                <ComboBoxItem Content="SW-183"/><ComboBoxItem Content="SW-253"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock Text="Uses the cone, clay, and atmosphere in Pottery settings. Defaults are Cone 6, white stoneware, and oxidation, with two coats of each glaze on the outside." Foreground="#52625A" FontSize="11" Margin="0,6,0,0"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <Button x:Name="PredictGlaze" Content="Predict Color"/>
+                                        <Button x:Name="ImportPrediction" Content="Load Prediction JSON…" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="PredictionResult" Orientation="Horizontal" Visibility="Collapsed" Margin="0,8,0,0">
+                                        <Border x:Name="PredictionSwatch" Width="24" Height="24" CornerRadius="5" BorderBrush="#C7B29F" BorderThickness="1"/>
+                                        <TextBlock x:Name="PredictionColor" VerticalAlignment="Center" Margin="7,0,0,0" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="PredictionStatus" Foreground="#52625A" FontSize="11" Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Expander>
+
                             <Separator Margin="0,12,0,10" Background="#DDDCD4"/>
                             <TextBlock Style="{StaticResource Section}" Text="Application and firing"/>
                             <Grid>

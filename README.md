@@ -12,6 +12,12 @@ NOVA is a Windows desktop app for previewing pottery with Blender. Choose a buil
 
 Blender runs in the background with the same camera, softboxes, and backdrop for every preview. Thickness, firing, and other advanced values are recorded in the setup JSON. **Render Preview** applies the selected color and opacity to the Blender material.
 
+## Predict glaze color
+
+Open **Studio → Predict glaze color**. Choose or type the top and base glaze IDs and click **Predict Color**. The order matters. NOVA uses the cone, clay body, and atmosphere from **Additional Options → Pottery** when provided. It sends the example contract's defaults for blank fields and uses two coats of each glaze on the outside. The predicted base color appears as a swatch and is applied to the live model. Click **Render Preview** to see it under studio lighting.
+
+NOVA defaults to the prediction endpoint listed in the supplied ZIP. Set `GLAZE_API_TOKEN` privately in the environment before launching NOVA. If the tunnel URL changes, set `GLAZE_API_URL` to the replacement endpoint. **Load Prediction JSON** also accepts an actual response with `appearance.base_color_srgb` in `#RRGGBB` format. The ZIP contains demo values and an API contract. Live predictions require the separate trained model service.
+
 ## NOVA assistant
 
 The assistant appears to the right of the preview. Click **API key…** and save an OpenRouter API key to enable pottery help and natural-language setting changes. NOVA encrypts the saved key for the current Windows account; chat messages and the current model, glaze, and firing settings are sent to OpenRouter for a response. API requests may use your OpenRouter balance. The assistant updates supported fields in the app, and you can click **Render Preview** to see the change.
