@@ -71,6 +71,7 @@
                                 <Button Grid.Column="1" x:Name="ImportGlb" Content="Import GLB…" Margin="8,0,0,0"/>
                             </Grid>
                             <TextBlock x:Name="ModelFile" Foreground="#4F6458" FontSize="12" Margin="0,5,0,0" Visibility="Collapsed"/>
+                            <Button x:Name="GenerateFromPhoto" Content="Generate GLB from Photo…" HorizontalAlignment="Left" Margin="0,8,0,0"/>
 
                             <Separator Margin="0,12,0,11" Background="#DDDCD4"/>
                             <TextBlock Style="{StaticResource Section}" Text="Glaze composition"/>
@@ -153,6 +154,10 @@
                                     <TextBlock Text="1 layer · fixed" Foreground="#52625A"/>
                                     <Button x:Name="LocateBlender" Content="Locate Blender…" HorizontalAlignment="Left" Margin="0,12,0,0"/>
                                     <TextBlock x:Name="BlenderPath" Foreground="#52625A" FontSize="11" Margin="0,4,0,0"/>
+                                    <Button x:Name="SetupPhotoGenerator" Content="Set Up Photo Generator" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                                    <TextBlock Text="One-time dependency and model download for photo-to-GLB." Foreground="#52625A" FontSize="11" Margin="0,4,0,0"/>
+                                    <CheckBox x:Name="BakePhotoTexture" Content="Bake photo texture into GLB (slower)" Margin="0,8,0,0"/>
+                                    <CheckBox x:Name="DraftPhotoMesh" Content="Draft photo mesh (faster, less detail)" Margin="0,6,0,0"/>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
@@ -174,12 +179,59 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Style="{StaticResource Section}" Text="Studio preview"/>
+                    <DockPanel Margin="0,0,0,8">
+                        <Button x:Name="Orient" DockPanel.Dock="Right" Content="Orient Model"/>
+                        <TextBlock Style="{StaticResource Section}" Margin="0" VerticalAlignment="Center" Text="Studio preview"/>
+                    </DockPanel>
                     <Border Grid.Row="1" Background="#E9E5DC" CornerRadius="6" ClipToBounds="True">
                         <Grid>
                             <Image x:Name="Preview" Stretch="Uniform" AutomationProperties.Name="Pottery render"/>
                             <TextBlock x:Name="EmptyPreview" Text="Your Blender render will appear here." HorizontalAlignment="Center"
                                        VerticalAlignment="Center" Foreground="#52625A" Margin="14" TextAlignment="Center"/>
+                            <Grid x:Name="OrientationEditor" Visibility="Collapsed" Background="#E9E5DC">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Viewport3D IsHitTestVisible="False">
+                                    <Viewport3D.Camera>
+                                        <OrthographicCamera Position="3.7,2.7,6.5" LookDirection="-3.7,-2.7,-6.5" UpDirection="0,1,0" Width="4"/>
+                                    </Viewport3D.Camera>
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+                                            <Model3DGroup>
+                                                <AmbientLight Color="#727272"/>
+                                                <DirectionalLight Color="#CBCBCB" Direction="1,-2,-3"/>
+                                                <DirectionalLight Color="#6D6D6D" Direction="-2,0,1"/>
+                                            </Model3DGroup>
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+                                    <ModelVisual3D x:Name="OrientationModel"/>
+                                </Viewport3D>
+                                <Border x:Name="RotateSurface" Background="Transparent" Cursor="SizeAll"
+                                        ToolTip="Drag to turn and tilt. Use the Roll slider to rotate sideways."/>
+                                <Grid Grid.Row="1" Background="#F5F2EB" Margin="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Margin="8,4">
+                                        <TextBlock Text="Turn"/>
+                                        <Slider x:Name="Turn" Minimum="-180" Maximum="180" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="Turn in degrees"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="8,4">
+                                        <TextBlock Text="Tilt"/>
+                                        <Slider x:Name="Tilt" Minimum="-180" Maximum="180" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="Tilt in degrees"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Margin="8,4">
+                                        <TextBlock Text="Roll"/>
+                                        <Slider x:Name="Roll" Minimum="-180" Maximum="180" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="Roll in degrees"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="3" x:Name="ResetOrientation" Content="Reset" Margin="6"/>
+                                </Grid>
+                            </Grid>
                         </Grid>
                     </Border>
                     <Grid Grid.Row="2" Margin="0,10,0,0">

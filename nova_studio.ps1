@@ -4,11 +4,14 @@ Add-Type -AssemblyName PresentationFramework
 $window = [Windows.Markup.XamlReader]::Parse([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'studio.xaml')))
 $ui = @{}
 foreach ($name in @(
-    'Model', 'ModelFile', 'ImportGlb', 'Celadon', 'Cobalt', 'Oatmeal', 'Recipe',
+    'Model', 'ModelFile', 'ImportGlb', 'GenerateFromPhoto', 'SetupPhotoGenerator',
+    'Celadon', 'Cobalt', 'Oatmeal', 'Recipe',
     'Thickness', 'Temperature', 'Advanced', 'Atmosphere', 'AtmosphereNotes',
     'Cone', 'Ramp', 'Soak', 'Schedule', 'CoolingRate', 'CoolingProfile', 'Clay',
     'ClayColor', 'ThicknessMap', 'Geometry', 'LocateBlender', 'BlenderPath',
-    'Render', 'ExportSetup', 'Preview', 'EmptyPreview', 'PreviewLabel', 'Status', 'SavePreview'
+    'Render', 'ExportSetup', 'Preview', 'EmptyPreview', 'PreviewLabel', 'Status', 'SavePreview',
+    'Orient', 'OrientationEditor', 'OrientationModel', 'RotateSurface', 'Turn', 'Tilt', 'Roll',
+    'ResetOrientation', 'BakePhotoTexture', 'DraftPhotoMesh'
 )) {
     $ui[$name] = $window.FindName($name)
 }
@@ -59,13 +62,15 @@ function Get-OptionalNumber($control, [string]$label, [switch]$AllowZero) {
     return $number
 }
 
+function Get-ModelSelection {
+    if ($script:glbPath) { return [ordered]@{ kind = 'glb'; path = $script:glbPath } }
+    return [ordered]@{ kind = 'preset'; id = [string]$ui.Model.SelectedItem.Tag }
+}
+
 function Get-Setup {
     $glaze = @($ui.Celadon, $ui.Cobalt, $ui.Oatmeal) | Where-Object { $_.IsChecked } | Select-Object -First 1
-    $model = if ($script:glbPath) {
-        [ordered]@{ kind = 'glb'; path = $script:glbPath }
-    } else {
-        [ordered]@{ kind = 'preset'; id = [string]$ui.Model.SelectedItem.Tag }
-    }
+    $model = Get-ModelSelection
+    $model.rotation_xyz_degrees = @($ui.Tilt.Value, $ui.Roll.Value, $ui.Turn.Value)
     $clayColor = Get-OptionalText $ui.ClayColor
     if ($clayColor -and $clayColor -notmatch '^#[0-9a-fA-F]{6}$') {
         $ui.Advanced.IsExpanded = $true
@@ -112,6 +117,110 @@ function Update-BlenderPath {
     $ui.BlenderPath.Text = if ($script:blender) { $script:blender } else { 'Blender 5.2 or newer is required.' }
 }
 
+function Set-GlbModel([string]$path) {
+    $ui.Model.SelectedIndex = -1
+    $script:glbPath = $path
+    $ui.ModelFile.Text = [IO.Path]::GetFileName($path)
+    $ui.ModelFile.ToolTip = $path
+    $ui.ModelFile.Visibility = 'Visible'
+    Clear-OrientationMesh
+}
+
+function Show-OrientationEditor([bool]$visible) {
+    $ui.OrientationEditor.Visibility = if ($visible) { 'Visible' } else { 'Collapsed' }
+    $ui.Orient.Content = if ($visible) { 'Back to Render' } else { 'Orient Model' }
+}
+
+function Reset-ModelOrientation {
+    $ui.Turn.Value = $ui.Tilt.Value = $ui.Roll.Value = 0
+}
+
+function Clear-OrientationMesh {
+    Show-OrientationEditor $false
+    $ui.OrientationModel.Content = $null
+    Reset-ModelOrientation
+}
+
+function Open-OrientationMesh([string]$path) {
+    $reader = [IO.BinaryReader]::new([IO.File]::OpenRead($path))
+    try {
+        $pointCount = $reader.ReadInt32()
+        $indexCount = $reader.ReadInt32()
+        if ($pointCount -le 0 -or $indexCount -le 0 -or $reader.BaseStream.Length -ne (8L + 12L * $pointCount + 4L * $indexCount)) {
+            throw 'Blender returned an invalid orientation mesh.'
+        }
+        $positions = [Windows.Media.Media3D.Point3DCollection]::new($pointCount)
+        for ($i = 0; $i -lt $pointCount; $i++) {
+            $positions.Add([Windows.Media.Media3D.Point3D]::new($reader.ReadSingle(), $reader.ReadSingle(), $reader.ReadSingle()))
+        }
+        $indices = [Windows.Media.Int32Collection]::new($indexCount)
+        for ($i = 0; $i -lt $indexCount; $i++) { $indices.Add($reader.ReadInt32()) }
+    } finally {
+        $reader.Dispose()
+    }
+    $mesh = [Windows.Media.Media3D.MeshGeometry3D]::new()
+    $mesh.Positions = $positions
+    $mesh.TriangleIndices = $indices
+    $mesh.Freeze()
+    $material = [Windows.Media.Media3D.DiffuseMaterial]::new([Windows.Media.Brushes]::SlateGray)
+    $model = [Windows.Media.Media3D.GeometryModel3D]::new($mesh, $material)
+    $model.BackMaterial = $material
+    $model.Transform = $orientationTransform
+    $ui.OrientationModel.Content = $model
+    Show-OrientationEditor $true
+}
+
+function Get-BlenderArguments([string]$request, [string]$output) {
+    return '--background --factory-startup --disable-autoexec --python-exit-code 1 --python "{0}" -- "{1}" "{2}"' -f $worker, $request, $output
+}
+
+function Start-OrientationEditor {
+    if ($script:job) { return }
+    if ($ui.OrientationEditor.Visibility -eq 'Visible') { Show-OrientationEditor $false; return }
+    if ($ui.OrientationModel.Content) { Show-OrientationEditor $true; return }
+    try {
+        if (!$script:blender) { throw 'Select Blender under Advanced Options before orienting a model.' }
+        $prefix = Join-Path $scratch ([guid]::NewGuid().ToString('N'))
+        $request = "$prefix.json"
+        $mesh = "$prefix.mesh"
+        Write-Setup @{
+            model = Get-ModelSelection
+            glaze_id = 'CELADON'
+            inputs = @{ layers = @(@{ glaze_id = 'CELADON'; order = 1 }) }
+        } $request
+        Start-StudioJob $script:blender ((Get-BlenderArguments $request $mesh) + ' mesh') @{
+            Kind = 'Orientation'; Tool = 'Blender'; Output = $mesh
+        } 'Loading model for orientation...'
+    } catch {
+        Set-Status $_.Exception.Message
+    }
+}
+
+function Start-StudioJob([string]$program, [string]$arguments, [hashtable]$job, [string]$message) {
+    $launch = New-Object Diagnostics.ProcessStartInfo -Property @{
+        FileName = $program
+        Arguments = $arguments
+        UseShellExecute = $false
+        CreateNoWindow = $true
+        RedirectStandardOutput = $true
+        RedirectStandardError = $true
+    }
+    $job.Process = [Diagnostics.Process]::Start($launch)
+    $job.Stdout = $job.Process.StandardOutput.ReadToEndAsync()
+    $job.Stderr = $job.Process.StandardError.ReadToEndAsync()
+    $script:job = $job
+    $ui.Render.IsEnabled = $false
+    $ui.GenerateFromPhoto.IsEnabled = $false
+    $ui.SetupPhotoGenerator.IsEnabled = $false
+    $ui.Orient.IsEnabled = $false
+    if ($job.Kind -in @('Photo', 'Orientation')) {
+        $ui.Model.IsEnabled = $false
+        $ui.ImportGlb.IsEnabled = $false
+    }
+    Set-Status $message
+    $timer.Start()
+}
+
 function Start-Preview {
     if ($script:job) { return }
     try {
@@ -133,25 +242,54 @@ function Start-Preview {
         $image = "$prefix.png"
         Write-Setup $setup $request
 
-        $launch = New-Object Diagnostics.ProcessStartInfo -Property @{
-            FileName = $script:blender
-            Arguments = '--background --factory-startup --disable-autoexec --python-exit-code 1 --python "{0}" -- "{1}" "{2}"' -f $worker, $request, $image
-            UseShellExecute = $false
-            CreateNoWindow = $true
-            RedirectStandardOutput = $true
-            RedirectStandardError = $true
+        $arguments = Get-BlenderArguments $request $image
+        $label = "$modelName / $glazeName"
+        Start-StudioJob $script:blender $arguments @{
+            Kind = 'Preview'; Tool = 'Blender'; Output = $image; Label = $label
+        } "Rendering $label in Blender..."
+    } catch {
+        Set-Status $_.Exception.Message
+    }
+}
+
+function Test-PhotoGenerator {
+    if (!(Test-Path -LiteralPath $generatorPython -PathType Leaf)) { return $false }
+    foreach ($name in @('model.ckpt', 'config.yaml', 'dino.json', 'u2netp.onnx')) {
+        if (!(Test-Path -LiteralPath (Join-Path $generatorRoot ".runtime/weights/$name") -PathType Leaf)) {
+            return $false
         }
-        $process = [Diagnostics.Process]::Start($launch)
-        $script:job = @{
-            Process = $process
-            Image = $image
-            Stdout = $process.StandardOutput.ReadToEndAsync()
-            Stderr = $process.StandardError.ReadToEndAsync()
-            Label = "$modelName / $glazeName"
+    }
+    return $true
+}
+
+function Start-PhotoGeneration {
+    if ($script:job) { return }
+    try {
+        if (!(Test-PhotoGenerator)) {
+            $ui.Advanced.IsExpanded = $true
+            $ui.SetupPhotoGenerator.BringIntoView()
+            throw 'Open Advanced Options and click Set Up Photo Generator first.'
         }
-        $ui.Render.IsEnabled = $false
-        Set-Status "Rendering $($script:job.Label) in Blender..."
-        $timer.Start()
+
+        $photo = New-Object Microsoft.Win32.OpenFileDialog -Property @{
+            Filter = 'Photos (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg'
+        }
+        if (!$photo.ShowDialog($window)) { return }
+
+        $output = New-Object Microsoft.Win32.SaveFileDialog -Property @{
+            Filter = 'glTF binary (*.glb)|*.glb'; DefaultExt = '.glb'
+            FileName = [IO.Path]::GetFileNameWithoutExtension($photo.FileName) + '.glb'
+        }
+        if (!$output.ShowDialog($window)) { return }
+        if ([IO.Path]::GetExtension($output.FileName) -ne '.glb') { throw 'Choose a .glb output filename.' }
+
+        $staged = Join-Path $scratch ([guid]::NewGuid().ToString('N') + '.glb')
+        $arguments = '-B "{0}" "{1}" "{2}"' -f $generatorScript, $photo.FileName, $staged
+        if (!$ui.BakePhotoTexture.IsChecked) { $arguments += ' --geometry-only' }
+        if ($ui.DraftPhotoMesh.IsChecked) { $arguments += ' --mesh-resolution 96' }
+        Start-StudioJob $generatorPython $arguments @{
+            Kind = 'Photo'; Tool = 'Photo generator'; Output = $staged; Destination = $output.FileName
+        } 'Generating a GLB from the photo. This can take several minutes...'
     } catch {
         Set-Status $_.Exception.Message
     }
@@ -162,6 +300,22 @@ $script:glbPath = $null
 $script:job = $null
 $script:lastImage = $null
 $worker = Join-Path $PSScriptRoot 'render_preview.py'
+$generatorRoot = Join-Path $PSScriptRoot 'Nova-Image-to-3D'
+$generatorScript = Join-Path $generatorRoot 'nova.py'
+$generatorPython = Join-Path $generatorRoot '.runtime/env/Scripts/python.exe'
+$orientationTransform = [Windows.Media.Media3D.Transform3DGroup]::new()
+$rotation = @{}
+# Blender uses XYZ rotation in order. In the viewport, Blender Y maps to -Z and Z maps to Y.
+foreach ($axis in @('Tilt', 'Roll', 'Turn')) {
+    $vector = switch ($axis) {
+        'Tilt' { [Windows.Media.Media3D.Vector3D]::new(1, 0, 0) }
+        'Roll' { [Windows.Media.Media3D.Vector3D]::new(0, 0, -1) }
+        'Turn' { [Windows.Media.Media3D.Vector3D]::new(0, 1, 0) }
+    }
+    $rotation[$axis] = [Windows.Media.Media3D.AxisAngleRotation3D]::new($vector, 0)
+    $orientationTransform.Children.Add([Windows.Media.Media3D.RotateTransform3D]::new($rotation[$axis]))
+    $ui[$axis].Add_ValueChanged({ param($sender, $eventArgs) $rotation[$sender.Name].Angle = $eventArgs.NewValue })
+}
 $scratch = Join-Path ([IO.Path]::GetTempPath()) ('nova-pottery-' + [guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($scratch)
 $timer = New-Object Windows.Threading.DispatcherTimer
@@ -172,23 +326,44 @@ $timer.Add_Tick({
     if (!$job.Process.HasExited) { return }
     $timer.Stop()
     try {
-        if ($job.Process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $job.Image -PathType Leaf)) {
+        if ($job.Process.ExitCode -ne 0 -or ($job.Output -and !(Test-Path -LiteralPath $job.Output -PathType Leaf))) {
             $lines = ($job.Stdout.Result + "`n" + $job.Stderr.Result) -split '\r?\n'
-            $detail = $lines | Where-Object { $_ -match 'Error: |Exception: ' -and $_ -notlike 'Error: script failed*' } | Select-Object -Last 1
+            $detail = $lines | Where-Object { $_ -match '(?i)error: |exception: ' -and $_ -notlike 'Error: script failed*' } | Select-Object -Last 1
+            if (!$detail) {
+                $detail = ($job.Stderr.Result -split '\r?\n') | Where-Object { $_.Trim() } | Select-Object -First 1
+            }
             if ($detail) { throw $detail }
-            throw "Blender exited with code $($job.Process.ExitCode) before saving the preview."
+            throw "$($job.Tool) did not finish successfully (exit code $($job.Process.ExitCode))."
+        }
+
+        if ($job.Kind -eq 'Photo') {
+            [IO.File]::Copy($job.Output, $job.Destination, $true)
+            Set-GlbModel $job.Destination
+            Set-Status 'GLB generated and selected. Click Render Preview to apply the glaze.'
+            return
+        }
+        if ($job.Kind -eq 'Setup') {
+            if (!(Test-PhotoGenerator)) { throw 'Setup did not produce all required photo generator files.' }
+            Set-Status 'Photo generator ready. Click Generate GLB from Photo to begin.'
+            return
+        }
+        if ($job.Kind -eq 'Orientation') {
+            Open-OrientationMesh $job.Output
+            Set-Status 'Drag to turn and tilt, or use the sliders. Render Preview applies the orientation.'
+            return
         }
 
         $bitmap = New-Object Windows.Media.Imaging.BitmapImage
         $bitmap.BeginInit()
         $bitmap.CacheOption = 'OnLoad'
-        $bitmap.UriSource = [uri]$job.Image
+        $bitmap.UriSource = [uri]$job.Output
         $bitmap.EndInit()
         $ui.Preview.Source = $bitmap
         $ui.EmptyPreview.Visibility = 'Collapsed'
         $ui.PreviewLabel.Text = "Last render / $($job.Label)"
-        $script:lastImage = $job.Image
+        $script:lastImage = $job.Output
         $ui.SavePreview.IsEnabled = $true
+        Show-OrientationEditor $false
         Set-Status 'Preview ready'
     } catch {
         Set-Status $_.Exception.Message
@@ -196,21 +371,55 @@ $timer.Add_Tick({
         $job.Process.Dispose()
         $script:job = $null
         $ui.Render.IsEnabled = $true
+        $ui.GenerateFromPhoto.IsEnabled = $true
+        $ui.SetupPhotoGenerator.IsEnabled = $true
+        $ui.Orient.IsEnabled = $true
+        $ui.Model.IsEnabled = $true
+        $ui.ImportGlb.IsEnabled = $true
     }
 })
 
 $ui.Model.Add_SelectionChanged({
     $script:glbPath = $null
     $ui.ModelFile.Visibility = 'Collapsed'
+    Clear-OrientationMesh
 })
+$ui.Orient.Add_Click({ Start-OrientationEditor })
+$ui.ResetOrientation.Add_Click({ Reset-ModelOrientation })
+$ui.RotateSurface.Add_MouseLeftButtonDown({
+    param($sender, $eventArgs)
+    $script:dragStart = $eventArgs.GetPosition($sender)
+    $script:dragTurn = $ui.Turn.Value
+    $script:dragTilt = $ui.Tilt.Value
+    [void]$sender.CaptureMouse()
+})
+$ui.RotateSurface.Add_MouseMove({
+    param($sender, $eventArgs)
+    if (!$sender.IsMouseCaptured -or $eventArgs.LeftButton -ne 'Pressed') { return }
+    $point = $eventArgs.GetPosition($sender)
+    $turn = [math]::Round($script:dragTurn + ($point.X - $script:dragStart.X) * .6)
+    $tilt = [math]::Round($script:dragTilt + ($point.Y - $script:dragStart.Y) * .6)
+    $ui.Turn.Value = ((($turn + 180) % 360 + 360) % 360) - 180
+    $ui.Tilt.Value = ((($tilt + 180) % 360 + 360) % 360) - 180
+})
+$ui.RotateSurface.Add_MouseLeftButtonUp({ param($sender, $eventArgs) $sender.ReleaseMouseCapture() })
 $ui.ImportGlb.Add_Click({
     $dialog = New-Object Microsoft.Win32.OpenFileDialog -Property @{ Filter = 'glTF binary (*.glb)|*.glb' }
     if ($dialog.ShowDialog($window)) {
-        $ui.Model.SelectedIndex = -1
-        $script:glbPath = $dialog.FileName
-        $ui.ModelFile.Text = [IO.Path]::GetFileName($script:glbPath)
-        $ui.ModelFile.ToolTip = $script:glbPath
-        $ui.ModelFile.Visibility = 'Visible'
+        Set-GlbModel $dialog.FileName
+    }
+})
+$ui.GenerateFromPhoto.Add_Click({ Start-PhotoGeneration })
+$ui.SetupPhotoGenerator.Add_Click({
+    if ($script:job) { return }
+    try {
+        $setupScript = Join-Path $generatorRoot 'setup.ps1'
+        $arguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $setupScript
+        Start-StudioJob (Join-Path $PSHOME 'powershell.exe') $arguments @{
+            Kind = 'Setup'; Tool = 'Photo generator setup'
+        } 'Installing photo generator dependencies and model weights. This can take several minutes...'
+    } catch {
+        Set-Status $_.Exception.Message
     }
 })
 $ui.LocateBlender.Add_Click({

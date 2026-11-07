@@ -220,28 +220,36 @@ def read_glb(context, filepath):
         bpy.data.batch_remove(imported_data)
 
 
+def fit_model(objects, rotation=None):
+    minimum = np.full(3, np.inf)
+    maximum = np.full(3, -np.inf)
+    axes = np.asarray(rotation) if rotation is not None else None
+    for obj in objects:
+        coordinates = np.empty(len(obj.data.vertices) * 3, dtype=np.float32)
+        obj.data.vertices.foreach_get("co", coordinates)
+        vertices = coordinates.reshape(-1, 3)
+        if axes is not None:
+            vertices = vertices @ axes.T
+        minimum = np.minimum(minimum, vertices.min(axis=0))
+        maximum = np.maximum(maximum, vertices.max(axis=0))
+    size = maximum - minimum
+    extent = max(size[0] / 2.25, size[1] / 2.25, size[2] / 2.05)
+    if not np.isfinite(size).all() or not np.isfinite(minimum).all() or extent <= 0:
+        raise ValueError("The model has invalid or zero-sized geometry.")
+    scale = 1 / extent
+    center = (minimum + maximum) / 2
+    center[2] = minimum[2]
+    fit = Matrix.Translation(Vector(-center * scale)) @ Matrix.Scale(scale, 4)
+    return fit if rotation is None else fit @ rotation.to_4x4()
+
+
 def replace_model(settings, objects, label):
     collection = settings.model_collection
     previous = list(collection.objects)
     try:
-        minimum = np.full(3, np.inf)
-        maximum = np.full(3, -np.inf)
-        for obj in objects:
-            # Imported transforms are already baked into these vertices, so
-            # tilted or nested parts can be fitted together without gaps.
-            coordinates = np.empty(len(obj.data.vertices) * 3, dtype=np.float32)
-            obj.data.vertices.foreach_get("co", coordinates)
-            vertices = coordinates.reshape(-1, 3)
-            minimum = np.minimum(minimum, vertices.min(axis=0))
-            maximum = np.maximum(maximum, vertices.max(axis=0))
-        size = maximum - minimum
-        extent = max(size[0] / 2.25, size[1] / 2.25, size[2] / 2.05)
-        if not np.isfinite(size).all() or not np.isfinite(minimum).all() or extent <= 0:
-            raise ValueError("The model has invalid or zero-sized geometry.")
-        scale = 1 / extent
-        center = (minimum + maximum) / 2
-        center[2] = minimum[2]
-        fit = Matrix.Translation(Vector(-center * scale)) @ Matrix.Scale(scale, 4)
+        # The importer bakes transforms into the vertices, so all parts can
+        # be fitted together without changing their relative placement.
+        fit = fit_model(objects)
         material = glaze_material(settings.glaze)
         for obj in objects:
             obj.matrix_world = fit
