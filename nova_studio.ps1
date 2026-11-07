@@ -1,18 +1,20 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationFramework
+Add-Type -AssemblyName System.Security
 
 $window = [Windows.Markup.XamlReader]::Parse([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'studio.xaml')))
 $ui = @{}
 foreach ($name in @(
     'Model', 'ModelFile', 'ImportGlb', 'GenerateFromPhoto', 'SetupPhotoGenerator',
-    'Celadon', 'Cobalt', 'Oatmeal', 'CustomGlaze', 'CustomSwatch', 'CustomColorWheel',
+    'Celadon', 'Cobalt', 'Oatmeal', 'CustomGlaze', 'CustomSwatch', 'CustomColorPanel', 'CustomColorWheel',
     'CustomBrightness', 'CustomColorHex', 'Recipe',
     'Thickness', 'Temperature', 'OptionsTabs', 'Atmosphere', 'AtmosphereNotes',
     'Cone', 'Ramp', 'Soak', 'Schedule', 'CoolingRate', 'CoolingProfile', 'Clay',
     'ClayColor', 'ThicknessMap', 'Geometry', 'LocateBlender', 'BlenderPath',
     'Render', 'ExportSetup', 'Preview', 'EmptyPreview', 'PreviewLabel', 'Status', 'SavePreview',
     'Orient', 'OrientationEditor', 'OrientationModel', 'RotateSurface', 'Turn', 'Tilt', 'Roll',
-    'ResetOrientation', 'BakePhotoTexture', 'DraftPhotoMesh'
+    'ResetOrientation', 'BakePhotoTexture', 'DraftPhotoMesh', 'ChatKeyToggle', 'ChatKeyPanel',
+    'ChatApiKey', 'ChatSaveKey', 'ChatScroll', 'ChatMessages', 'ChatInput', 'ChatSend'
 )) {
     $ui[$name] = $window.FindName($name)
 }
@@ -38,6 +40,21 @@ function Update-CustomColor {
     $ui.CustomColorHex.Text = $script:customColor
     $color = [Windows.Media.Color][Windows.Media.ColorConverter]::ConvertFromString($script:customColor)
     $ui.CustomSwatch.Fill = [Windows.Media.SolidColorBrush]::new($color)
+}
+function Set-CustomColorFromHex([string]$hex) {
+    $color = [Windows.Media.Color][Windows.Media.ColorConverter]::ConvertFromString($hex)
+    $r = $color.R / 255.0; $g = $color.G / 255.0; $b = $color.B / 255.0
+    $max = [math]::Max($r, [math]::Max($g, $b)); $min = [math]::Min($r, [math]::Min($g, $b))
+    $delta = $max - $min
+    $script:customSaturation = if ($max -eq 0) { 0 } else { $delta / $max }
+    if ($delta -eq 0) { $script:customHue = 0 }
+    elseif ($max -eq $r) { $script:customHue = 60 * ((($g - $b) / $delta) % 6) }
+    elseif ($max -eq $g) { $script:customHue = 60 * ((($b - $r) / $delta) + 2) }
+    else { $script:customHue = 60 * ((($r - $g) / $delta) + 4) }
+    if ($script:customHue -lt 0) { $script:customHue += 360 }
+    $ui.CustomBrightness.Value = $max
+    $ui.CustomGlaze.IsChecked = $true
+    Update-CustomColor
 }
 
 # The wheel maps angle to hue and distance from its center to saturation.
@@ -91,6 +108,10 @@ $ui.CustomColorWheel.Add_MouseLeftButtonDown({
     }
 })
 $ui.CustomBrightness.Add_ValueChanged({ $ui.CustomGlaze.IsChecked = $true; Update-CustomColor })
+foreach ($presetName in @('Celadon', 'Cobalt', 'Oatmeal')) {
+    $ui[$presetName].Add_Checked({ $ui.CustomColorPanel.Visibility = [Windows.Visibility]::Collapsed })
+}
+$ui.CustomGlaze.Add_Checked({ $ui.CustomColorPanel.Visibility = [Windows.Visibility]::Visible })
 
 function Find-Blender {
     if ($env:NOVA_BLENDER -and (Test-Path -LiteralPath $env:NOVA_BLENDER -PathType Leaf)) {
@@ -192,6 +213,182 @@ function Get-Setup {
 
 function Write-Setup($setup, [string]$path) {
     [IO.File]::WriteAllText($path, ($setup | ConvertTo-Json -Depth 6))
+}
+
+function Add-ChatMessage([string]$message, [bool]$fromUser = $false) {
+    if (!$message.Trim()) { return }
+    $text = [Windows.Controls.TextBlock]::new()
+    $text.Text = $message
+    $text.TextWrapping = [Windows.TextWrapping]::Wrap
+    $text.FontSize = 12
+    $bubble = [Windows.Controls.Border]::new()
+    $bubble.CornerRadius = [Windows.CornerRadius]::new(8)
+    $bubble.Padding = [Windows.Thickness]::new(9)
+    $bubble.Margin = [Windows.Thickness]::new(0, 0, 0, 7)
+    $bubble.HorizontalAlignment = if ($fromUser) { [Windows.HorizontalAlignment]::Right } else { [Windows.HorizontalAlignment]::Left }
+    $bubble.Background = if ($fromUser) { [Windows.Media.SolidColorBrush]::new([Windows.Media.Color]::FromRgb(225, 233, 225)) } else { [Windows.Media.Brushes]::White }
+    $bubble.Child = $text
+    [void]$ui.ChatMessages.Children.Add($bubble)
+    $ui.ChatScroll.ScrollToEnd()
+    return $bubble
+}
+
+function Get-ChatApiKey {
+    if ($env:NOVA_OPENROUTER_API_KEY) { return $env:NOVA_OPENROUTER_API_KEY }
+    if (!(Test-Path -LiteralPath $script:chatKeyPath -PathType Leaf)) { return $null }
+    try {
+        $encrypted = [Convert]::FromBase64String([IO.File]::ReadAllText($script:chatKeyPath))
+        $plain = [Security.Cryptography.ProtectedData]::Unprotect(
+            $encrypted, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser
+        )
+        return [Text.Encoding]::UTF8.GetString($plain)
+    } catch {
+        throw 'NOVA could not unlock its saved API key for this Windows account. Enter and save the key again.'
+    }
+}
+
+function Save-ChatApiKey {
+    $apiKey = $ui.ChatApiKey.Password.Trim()
+    if (!$apiKey) { throw 'Paste your OpenRouter API key first.' }
+    $protected = [Security.Cryptography.ProtectedData]::Protect(
+        [Text.Encoding]::UTF8.GetBytes($apiKey), $null, [Security.Cryptography.DataProtectionScope]::CurrentUser
+    )
+    [void][IO.Directory]::CreateDirectory((Split-Path -Parent $script:chatKeyPath))
+    [IO.File]::WriteAllText($script:chatKeyPath, [Convert]::ToBase64String($protected))
+    $ui.ChatApiKey.Clear()
+    $ui.ChatKeyPanel.Visibility = [Windows.Visibility]::Collapsed
+    Add-ChatMessage 'API key saved encrypted for this Windows account. You can ask me to change a glaze, model, or firing field, or ask a pottery question.'
+}
+
+function Apply-AssistantChanges($changes) {
+    $changed = [Collections.Generic.List[string]]::new()
+    if ($changes.model_id -and $changes.model_id -in @('BOWL', 'VASE', 'CUP')) {
+        $index = @{ BOWL = 0; VASE = 1; CUP = 2 }[[string]$changes.model_id]
+        if ($ui.Model.SelectedIndex -ne $index) { $ui.Model.SelectedIndex = $index; $changed.Add('model') }
+    }
+    if ($changes.glaze_id -and $changes.glaze_id -in @('CELADON', 'COBALT', 'OATMEAL', 'CUSTOM')) {
+        $radio = @{ CELADON = $ui.Celadon; COBALT = $ui.Cobalt; OATMEAL = $ui.Oatmeal; CUSTOM = $ui.CustomGlaze }[[string]$changes.glaze_id]
+        if (!$radio.IsChecked) { $radio.IsChecked = $true; $changed.Add('glaze') }
+    }
+    if ($changes.custom_color_srgb -and $changes.custom_color_srgb -match '^#[0-9a-fA-F]{6}$') {
+        $before = $ui.CustomColorHex.Text
+        Set-CustomColorFromHex $changes.custom_color_srgb
+        if ($before -ne $ui.CustomColorHex.Text) { $changed.Add('custom color') }
+    }
+
+    $textFields = @{
+        recipe_id_or_composition = $ui.Recipe
+        atmosphere_notes = $ui.AtmosphereNotes
+        cone = $ui.Cone
+        firing_schedule = $ui.Schedule
+        cooling_profile = $ui.CoolingProfile
+        clay_body = $ui.Clay
+        fired_clay_color_srgb = $ui.ClayColor
+        thickness_map_path = $ui.ThicknessMap
+        firing_geometry_notes = $ui.Geometry
+    }
+    foreach ($field in $textFields.Keys) {
+        $value = $changes.$field
+        if ($null -ne $value -and $textFields[$field].Text -ne [string]$value) {
+            $textFields[$field].Text = [string]$value
+            $changed.Add($field.Replace('_', ' '))
+        }
+    }
+    $numberFields = @{
+        nominal_thickness_mm = @{ Control = $ui.Thickness; Max = 100; AllowZero = $false }
+        peak_temperature_C = @{ Control = $ui.Temperature; Max = 2500; AllowZero = $false }
+        heat_up_rate_C_per_hour = @{ Control = $ui.Ramp; Max = 5000; AllowZero = $false }
+        peak_soak_minutes = @{ Control = $ui.Soak; Max = 100000; AllowZero = $true }
+        cooling_rate_C_per_hour = @{ Control = $ui.CoolingRate; Max = 5000; AllowZero = $false }
+    }
+    foreach ($field in $numberFields.Keys) {
+        $value = $changes.$field
+        if ($null -eq $value) { continue }
+        $rule = $numberFields[$field]
+        $number = [double]$value
+        if ([double]::IsNaN($number) -or [double]::IsInfinity($number) -or $number -lt 0 -or $number -gt $rule.Max -or (!$rule.AllowZero -and $number -eq 0)) { continue }
+        $formatted = $number.ToString([Globalization.CultureInfo]::InvariantCulture)
+        if ($rule.Control.Text -ne $formatted) { $rule.Control.Text = $formatted; $changed.Add($field.Replace('_', ' ')) }
+    }
+    if ($changes.atmosphere -eq 'unspecified') {
+        if ($ui.Atmosphere.SelectedIndex -ne 0) { $ui.Atmosphere.SelectedIndex = 0; $changed.Add('kiln atmosphere') }
+    } elseif ($changes.atmosphere -and $changes.atmosphere -in @('oxidation', 'neutral', 'reduction')) {
+        for ($i = 1; $i -lt $ui.Atmosphere.Items.Count; $i++) {
+            if ($ui.Atmosphere.Items[$i].Tag -eq $changes.atmosphere -and $ui.Atmosphere.SelectedIndex -ne $i) {
+                $ui.Atmosphere.SelectedIndex = $i; $changed.Add('kiln atmosphere'); break
+            }
+        }
+    }
+    foreach ($field in $changes.clear_fields) {
+        if ($textFields.ContainsKey([string]$field) -and $textFields[[string]$field].Text) {
+            $textFields[[string]$field].Clear(); $changed.Add(([string]$field).Replace('_', ' '))
+        } elseif ($numberFields.ContainsKey([string]$field) -and $numberFields[[string]$field].Control.Text) {
+            $numberFields[[string]$field].Control.Clear(); $changed.Add(([string]$field).Replace('_', ' '))
+        }
+    }
+    if ($changed.Count) {
+        Set-Status ("Assistant changed: " + (($changed | Select-Object -Unique) -join ', ') + '. Click Render Preview to see the update.')
+    }
+    return ,@($changed | Select-Object -Unique)
+}
+
+function Start-ChatRequest([string]$prompt) {
+    if ($script:job) { return }
+    $apiKey = Get-ChatApiKey
+    if (!$apiKey) {
+        $ui.ChatKeyPanel.Visibility = [Windows.Visibility]::Visible
+        Add-ChatMessage 'Add your OpenRouter API key with the API key button, then send your message again.'
+        return
+    }
+    $current = [ordered]@{
+        model = if ($script:glbPath) { 'Imported GLB' } else { [string]$ui.Model.SelectedItem.Tag }
+        glaze = if ($ui.CustomGlaze.IsChecked) { "CUSTOM $($ui.CustomColorHex.Text)" } elseif ($ui.Cobalt.IsChecked) { 'COBALT' } elseif ($ui.Oatmeal.IsChecked) { 'OATMEAL' } else { 'CELADON' }
+        recipe = $ui.Recipe.Text
+        thickness_mm = $ui.Thickness.Text
+        peak_temperature_C = $ui.Temperature.Text
+        atmosphere = $ui.Atmosphere.SelectedItem.Content
+        atmosphere_notes = $ui.AtmosphereNotes.Text
+        cone = $ui.Cone.Text
+        heat_up_rate_C_per_hour = $ui.Ramp.Text
+        peak_soak_minutes = $ui.Soak.Text
+        firing_schedule = $ui.Schedule.Text
+        cooling_rate_C_per_hour = $ui.CoolingRate.Text
+        cooling_profile = $ui.CoolingProfile.Text
+        clay_body = $ui.Clay.Text
+        fired_clay_color_srgb = $ui.ClayColor.Text
+        firing_geometry_notes = $ui.Geometry.Text
+    } | ConvertTo-Json -Compress -Depth 5
+    $system = @'
+You are NOVA's pottery studio assistant. Answer questions about using NOVA, pottery glaze appearance, and firing setup. You may suggest settings, but do not claim a firing schedule is universally safe or guaranteed; encourage test tiles and a kiln manufacturer's instructions when appropriate. Only populate changes when the user asks to change a setting or clearly requests a design that implies a change. Never change settings for a general question. Leave every unchanged field null. Use clear_fields only when the user asks to clear a field. Keep replies concise, explain what changed, and mention that Render Preview is needed to view the new glaze or model.
+Supported models: BOWL, VASE, CUP. Supported glaze choices: CELADON, COBALT, OATMEAL, CUSTOM. Custom color uses #RRGGBB. Atmospheres are oxidation, neutral, or reduction. Numeric values must be plausible; thickness is millimeters, temperatures Celsius, heating and cooling rates Celsius per hour, and soak is minutes. Do not invent a model name or a glaze preset. Respond to the latest user message with current settings for context.
+'@
+    $history = @($script:chatHistory | Select-Object -Last 10)
+    $messages = @(@{ role = 'system'; content = $system }) + $history + @(@{ role = 'user'; content = "Current NOVA settings: $current`n`nUser: $prompt" })
+    $requestPath = Join-Path $scratch ([guid]::NewGuid().ToString('N') + '-chat-request.json')
+    $outputPath = Join-Path $scratch ([guid]::NewGuid().ToString('N') + '-chat-response.json')
+    [IO.File]::WriteAllText($requestPath, (@{ messages = $messages } | ConvertTo-Json -Depth 12), [Text.UTF8Encoding]::new($false))
+
+    $helper = Join-Path $PSScriptRoot 'chat_assistant.ps1'
+    $arguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}" "{1}" "{2}"' -f $helper, $requestPath, $outputPath
+    $launch = New-Object Diagnostics.ProcessStartInfo -Property @{
+        FileName = Join-Path $PSHOME 'powershell.exe'
+        Arguments = $arguments
+        UseShellExecute = $false
+        CreateNoWindow = $true
+        RedirectStandardOutput = $true
+        RedirectStandardError = $true
+    }
+    $launch.EnvironmentVariables['NOVA_OPENROUTER_API_KEY'] = $apiKey
+    $apiKey = $null
+    $process = [Diagnostics.Process]::Start($launch)
+    $script:job = @{
+        Kind = 'Chat'; Tool = 'NOVA assistant'; Output = $outputPath; Request = $requestPath
+        Prompt = $prompt; Process = $process; Stdout = $process.StandardOutput.ReadToEndAsync(); Stderr = $process.StandardError.ReadToEndAsync()
+    }
+    $ui.ChatSend.IsEnabled = $false
+    $ui.ChatInput.IsEnabled = $false
+    $script:thinkingBubble = Add-ChatMessage 'Thinking…'
+    $timer.Start()
 }
 
 function Set-Status([string]$message) {
@@ -299,6 +496,8 @@ function Start-StudioJob([string]$program, [string]$arguments, [hashtable]$job, 
     $ui.GenerateFromPhoto.IsEnabled = $false
     $ui.SetupPhotoGenerator.IsEnabled = $false
     $ui.Orient.IsEnabled = $false
+    $ui.ChatSend.IsEnabled = $false
+    $ui.ChatInput.IsEnabled = $false
     if ($job.Kind -in @('Photo', 'Orientation')) {
         $ui.Model.IsEnabled = $false
         $ui.ImportGlb.IsEnabled = $false
@@ -386,6 +585,8 @@ $script:blender = Find-Blender
 $script:glbPath = $null
 $script:job = $null
 $script:lastImage = $null
+$script:chatHistory = @()
+$script:chatKeyPath = Join-Path $env:LOCALAPPDATA 'NOVA/openrouter-key.dpapi'
 $worker = Join-Path $PSScriptRoot 'render_preview.py'
 $generatorRoot = Join-Path $PSScriptRoot 'Nova-Image-to-3D'
 $generatorScript = Join-Path $generatorRoot 'nova.py'
@@ -413,6 +614,27 @@ $timer.Add_Tick({
     if (!$job.Process.HasExited) { return }
     $timer.Stop()
     try {
+        if ($job.Kind -eq 'Chat') {
+            if ($job.Process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $job.Output -PathType Leaf)) {
+                $detail = ($job.Stderr.Result -split '\r?\n') | Where-Object { $_.Trim() } | Select-Object -Last 1
+                if (!$detail) { $detail = 'The OpenRouter request did not complete.' }
+                throw $detail
+            }
+            $reply = Get-Content -LiteralPath $job.Output -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($script:thinkingBubble -and $ui.ChatMessages.Children.Contains($script:thinkingBubble)) {
+                $ui.ChatMessages.Children.Remove($script:thinkingBubble)
+                $script:thinkingBubble = $null
+            }
+            $changed = Apply-AssistantChanges $reply.changes
+            $script:chatHistory += @(
+                @{ role = 'user'; content = $job.Prompt },
+                @{ role = 'assistant'; content = [string]$reply.reply }
+            )
+            if ($script:chatHistory.Count -gt 16) { $script:chatHistory = @($script:chatHistory | Select-Object -Last 16) }
+            Add-ChatMessage ([string]$reply.reply)
+            if ($changed.Count) { Set-Status 'Assistant settings applied. Click Render Preview to see them.' }
+            return
+        }
         if ($job.Process.ExitCode -ne 0 -or ($job.Output -and !(Test-Path -LiteralPath $job.Output -PathType Leaf))) {
             $lines = ($job.Stdout.Result + "`n" + $job.Stderr.Result) -split '\r?\n'
             $detail = $lines | Where-Object { $_ -match '(?i)error: |exception: ' -and $_ -notlike 'Error: script failed*' } | Select-Object -Last 1
@@ -454,6 +676,13 @@ $timer.Add_Tick({
         Set-Status 'Preview ready'
     } catch {
         Set-Status $_.Exception.Message
+        if ($job.Kind -eq 'Chat') {
+            if ($script:thinkingBubble -and $ui.ChatMessages.Children.Contains($script:thinkingBubble)) {
+                $ui.ChatMessages.Children.Remove($script:thinkingBubble)
+                $script:thinkingBubble = $null
+            }
+            Add-ChatMessage ("I couldn't complete that request. " + $_.Exception.Message)
+        }
     } finally {
         $job.Process.Dispose()
         $script:job = $null
@@ -463,6 +692,33 @@ $timer.Add_Tick({
         $ui.Orient.IsEnabled = $true
         $ui.Model.IsEnabled = $true
         $ui.ImportGlb.IsEnabled = $true
+        $ui.ChatSend.IsEnabled = $true
+        $ui.ChatInput.IsEnabled = $true
+    }
+})
+
+$ui.ChatKeyToggle.Add_Click({
+    $ui.ChatKeyPanel.Visibility = if ($ui.ChatKeyPanel.Visibility -eq [Windows.Visibility]::Visible) {
+        [Windows.Visibility]::Collapsed
+    } else { [Windows.Visibility]::Visible }
+})
+$ui.ChatSaveKey.Add_Click({
+    try { Save-ChatApiKey; Set-Status 'OpenRouter key saved securely for this Windows account.' }
+    catch { Set-Status $_.Exception.Message; Add-ChatMessage $_.Exception.Message }
+})
+$ui.ChatSend.Add_Click({
+    $prompt = $ui.ChatInput.Text.Trim()
+    if (!$prompt) { return }
+    $ui.ChatInput.Clear()
+    Add-ChatMessage $prompt $true
+    try { Start-ChatRequest $prompt }
+    catch { Set-Status $_.Exception.Message; Add-ChatMessage ("I couldn't start that request. " + $_.Exception.Message) }
+})
+$ui.ChatInput.Add_PreviewKeyDown({
+    param($sender, $eventArgs)
+    if ($eventArgs.Key -eq [Windows.Input.Key]::Enter -and [Windows.Input.Keyboard]::Modifiers.HasFlag([Windows.Input.ModifierKeys]::Control)) {
+        $eventArgs.Handled = $true
+        $ui.ChatSend.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
     }
 })
 

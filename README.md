@@ -12,6 +12,10 @@ NOVA is a Windows desktop app for previewing pottery with Blender. Choose a buil
 
 Blender runs in the background with the same camera, softboxes, and backdrop for every preview. Recipe, thickness, firing, and other advanced values are recorded in the setup JSON. The rendered appearance comes from the selected preset or custom color material.
 
+## NOVA assistant
+
+The assistant appears to the right of the preview. Click **API key…** and save an OpenRouter API key to enable pottery help and natural-language setting changes. NOVA encrypts the saved key for the current Windows account; chat messages and the current model, glaze, and firing settings are sent to OpenRouter for a response. API requests may use your OpenRouter balance. The assistant updates supported fields in the app, and you can click **Render Preview** to see the change.
+
 ## Generate a model from a photo
 
 1. Install 64-bit Python for Windows with `python` available on your PATH. In NOVA, open **Additional Options → Set Up Photo Generator**. Setup needs internet access and several GB of disk space for the model and Python dependencies. Generation runs locally after setup.
