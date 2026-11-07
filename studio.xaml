@@ -1,0 +1,200 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOVA Pottery Studio" Width="1120" Height="800" MinWidth="820" MinHeight="590"
+        WindowStartupLocation="CenterScreen" Background="#F5F2EB" FontFamily="Segoe UI"
+        Foreground="#24332B" UseLayoutRounding="True">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="Section" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style x:Key="Field" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,9,0,4"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="11,6"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="BorderBrush" Value="#B8BFB8"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="MinHeight" Value="30"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="24,18,24,22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,16">
+            <TextBlock Text="N O V A   /   C E R A M I C S" Foreground="#546B5C" FontSize="11" FontWeight="SemiBold"/>
+            <TextBlock Text="Pottery Studio" FontSize="32" FontWeight="SemiBold"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="365"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Background="#FFFEFB" BorderBrush="#DDDCD4" BorderThickness="1" CornerRadius="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="18,15,18,12">
+                            <TextBlock Style="{StaticResource Section}" Text="Model"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="Model" AutomationProperties.Name="Built-in pottery model" SelectedIndex="0">
+                                    <ComboBoxItem Tag="BOWL">Serving Bowl</ComboBoxItem>
+                                    <ComboBoxItem Tag="VASE">Bud Vase</ComboBoxItem>
+                                    <ComboBoxItem Tag="CUP">Tea Cup</ComboBoxItem>
+                                </ComboBox>
+                                <Button Grid.Column="1" x:Name="ImportGlb" Content="Import GLB…" Margin="8,0,0,0"/>
+                            </Grid>
+                            <TextBlock x:Name="ModelFile" Foreground="#4F6458" FontSize="12" Margin="0,5,0,0" Visibility="Collapsed"/>
+
+                            <Separator Margin="0,12,0,11" Background="#DDDCD4"/>
+                            <TextBlock Style="{StaticResource Section}" Text="Glaze composition"/>
+                            <TextBlock Foreground="#52625A" FontSize="12" Text="Choose a preset color and finish."/>
+                            <RadioButton x:Name="Celadon" GroupName="Glaze" Tag="CELADON" IsChecked="True" Margin="0,8,0,0" AutomationProperties.Name="Jade Celadon, glossy green">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="15" Height="15" Fill="#729882" Margin="4,0,8,0"/>
+                                    <TextBlock Text="Jade Celadon" Width="123" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Glossy green" Foreground="#52625A"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="Cobalt" GroupName="Glaze" Tag="COBALT" Margin="0,7,0,0" AutomationProperties.Name="Cobalt Blue, deep gloss">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="15" Height="15" Fill="#365A88" Margin="4,0,8,0"/>
+                                    <TextBlock Text="Cobalt Blue" Width="123" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Deep gloss" Foreground="#52625A"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="Oatmeal" GroupName="Glaze" Tag="OATMEAL" Margin="0,7,0,0" AutomationProperties.Name="Speckled Oatmeal, warm satin">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="15" Height="15" Fill="#C6A67C" Margin="4,0,8,0"/>
+                                    <TextBlock Text="Speckled Oatmeal" Width="123" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Warm satin" Foreground="#52625A"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <Label Target="{Binding ElementName=Recipe}" Content="Recipe ID or composition notes (optional)" Padding="0" Margin="0,10,0,4" FontSize="12"/>
+                            <TextBox x:Name="Recipe" ToolTip="Enter a product or recipe ID, or known oxide or ingredient proportions."/>
+
+                            <Separator Margin="0,12,0,10" Background="#DDDCD4"/>
+                            <TextBlock Style="{StaticResource Section}" Text="Application and firing"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <Label Target="{Binding ElementName=Thickness}" Content="Glaze thickness (mm)" Padding="0" Margin="0,0,0,4" FontSize="12"/>
+                                    <TextBox x:Name="Thickness" ToolTip="Nominal glaze thickness in millimeters. Leave blank if unknown."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <Label Target="{Binding ElementName=Temperature}" Content="Peak temperature (°C)" Padding="0" Margin="0,0,0,4" FontSize="12"/>
+                                    <TextBox x:Name="Temperature" ToolTip="Peak firing temperature in degrees Celsius. Leave blank if unknown."/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="Leave unknown values blank. The preview shows the selected glaze preset; recipe, thickness, and firing inputs are saved in the setup." Foreground="#52625A" FontSize="12" Margin="0,7,0,0"/>
+
+                            <Expander x:Name="Advanced" Header="Advanced Options" Margin="0,12,0,0" FontWeight="SemiBold">
+                                <StackPanel Margin="13,1,0,0" TextElement.FontWeight="Normal">
+                                    <TextBlock Style="{StaticResource Field}" Text="Kiln atmosphere"/>
+                                    <ComboBox x:Name="Atmosphere" SelectedIndex="0" AutomationProperties.Name="Kiln atmosphere">
+                                        <ComboBoxItem>Unspecified</ComboBoxItem>
+                                        <ComboBoxItem Tag="oxidation">Oxidation</ComboBoxItem>
+                                        <ComboBoxItem Tag="neutral">Neutral</ComboBoxItem>
+                                        <ComboBoxItem Tag="reduction">Reduction</ComboBoxItem>
+                                    </ComboBox>
+                                    <TextBlock Style="{StaticResource Field}" Text="Atmosphere timing and strength"/>
+                                    <TextBox x:Name="AtmosphereNotes" AutomationProperties.Name="Atmosphere timing and strength"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Pyrometric cone"/>
+                                    <TextBox x:Name="Cone" AutomationProperties.Name="Pyrometric cone" ToolTip="Text field preserves cone numbers such as 06."/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Heat-up rate (°C/hour)"/>
+                                    <TextBox x:Name="Ramp" AutomationProperties.Name="Heat-up rate"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Peak hold (minutes)"/>
+                                    <TextBox x:Name="Soak" AutomationProperties.Name="Peak hold in minutes"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Firing schedule or notes"/>
+                                    <TextBox x:Name="Schedule" AutomationProperties.Name="Firing schedule or notes"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Cooling rate (°C/hour)"/>
+                                    <TextBox x:Name="CoolingRate" AutomationProperties.Name="Cooling rate"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Cooling profile or holds"/>
+                                    <TextBox x:Name="CoolingProfile" AutomationProperties.Name="Cooling profile or holds"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Clay body ID or type"/>
+                                    <TextBox x:Name="Clay" AutomationProperties.Name="Clay body ID or type"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Fired clay color (sRGB hex)"/>
+                                    <TextBox x:Name="ClayColor" AutomationProperties.Name="Fired clay color" ToolTip="Use #RRGGBB for a measured fired clay color."/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Thickness map path (optional)"/>
+                                    <TextBox x:Name="ThicknessMap" AutomationProperties.Name="Thickness map path"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Firing orientation or geometry notes"/>
+                                    <TextBox x:Name="Geometry" AutomationProperties.Name="Firing orientation or geometry notes"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Glaze layers"/>
+                                    <TextBlock Text="1 layer · fixed" Foreground="#52625A"/>
+                                    <Button x:Name="LocateBlender" Content="Locate Blender…" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                                    <TextBlock x:Name="BlenderPath" Foreground="#52625A" FontSize="11" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <Border Grid.Row="1" BorderBrush="#DDDCD4" BorderThickness="0,1,0,0" Padding="18,11">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="Render" Content="Render Preview" FontWeight="SemiBold" IsDefault="True"/>
+                            <Button x:Name="ExportSetup" Content="Export Setup…" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Background="#FFFEFB" BorderBrush="#DDDCD4" BorderThickness="1" CornerRadius="12" Padding="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Style="{StaticResource Section}" Text="Studio preview"/>
+                    <Border Grid.Row="1" Background="#E9E5DC" CornerRadius="6" ClipToBounds="True">
+                        <Grid>
+                            <Image x:Name="Preview" Stretch="Uniform" AutomationProperties.Name="Pottery render"/>
+                            <TextBlock x:Name="EmptyPreview" Text="Your Blender render will appear here." HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" Foreground="#52625A" Margin="14" TextAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="2" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,8,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="PreviewLabel" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="Status" Text="Ready" Foreground="#52625A" FontSize="12"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" x:Name="SavePreview" Content="Save PNG…" IsEnabled="False"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
