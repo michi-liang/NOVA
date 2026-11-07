@@ -48,12 +48,8 @@ def fetch_prediction(top, base, cone):
         raise ValueError('Could not reach the prediction API. Check that the service and tunnel are online.') from error
 
 
-def retrieve_swatch(model_dir, appearance, cone, output):
+def retrieve_swatch(model_dir, color, contrast, cone, output):
     """Rank the included samples and adjust the winning photo crop as in the bundle."""
-    color = appearance.get('base_color_srgb')
-    if not isinstance(color, str) or not re.fullmatch(r'#[0-9A-Fa-f]{6}', color):
-        raise ValueError('The appearance prediction must contain a base_color_srgb hex color.')
-    contrast = appearance.get('pattern_contrast')
     if contrast is not None and (type(contrast) not in (int, float) or not math.isfinite(contrast)):
         raise ValueError('The appearance prediction has an invalid pattern_contrast.')
     target = np.array([int(color[i:i + 2], 16) / 255 for i in (1, 3, 5)])
@@ -104,17 +100,35 @@ def run(model_dir, request_path, report_path):
     saved_path = request.get('prediction_json')
     if saved_path:
         prediction = json.loads(Path(saved_path).read_text(encoding='utf-8-sig'))
-        inputs = prediction.get('inputs') or {}
-        layers = {layer['order']: layer['glaze_id'] for layer in inputs.get('layers', [])}
-        base, top, cone = layers.get(1), layers.get(2), inputs.get('cone')
     else:
         top, base, cone = (request[field].strip() for field in ('top', 'base', 'cone'))
         if not all((top, base, cone)):
             raise ValueError('Enter the top glaze, base glaze, and firing cone.')
         prediction = fetch_prediction(top, base, cone)
-    if not isinstance(prediction.get('appearance'), dict):
-        raise ValueError('The prediction response does not contain an appearance object.')
-    result = retrieve_swatch(model_dir, prediction['appearance'], cone, report_path.with_suffix('.png'))
+    if not isinstance(prediction, dict) or 'appearance' not in prediction:
+        raise ValueError('Expected a prediction response with an appearance field.')
+    appearance = prediction['appearance']
+    if appearance is not None and not isinstance(appearance, dict):
+        raise ValueError('The prediction response has an invalid appearance field.')
+    appearance = appearance or {}
+    color = appearance.get('base_color_srgb')
+    if isinstance(color, str):
+        color = color.strip()
+    if color is None or color == '':
+        if saved_path:
+            raise ValueError('This saved prediction has no fired color. Load a different response or click Run Sample.')
+        raise ValueError(
+            f'The service returned no fired color for {top} over {base} at {cone}. '
+            'Try another glaze pair or cone, or click Run Sample for an offline example.'
+        )
+    if not isinstance(color, str) or not re.fullmatch(r'#?[0-9A-Fa-f]{6}', color):
+        raise ValueError('The prediction contains an invalid fired color. Expected a six-digit sRGB hex value.')
+    color = '#' + color.lstrip('#').upper()
+    if saved_path:
+        inputs = prediction.get('inputs') or {}
+        layers = {layer['order']: layer['glaze_id'] for layer in inputs.get('layers', [])}
+        base, top, cone = layers.get(1), layers.get(2), inputs.get('cone')
+    result = retrieve_swatch(model_dir, color, appearance.get('pattern_contrast'), cone, report_path.with_suffix('.png'))
     result['input_glazes'] = {'top': top, 'base': base, 'cone': cone}
     result['source'] = 'saved_prediction' if saved_path else 'api'
     report_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')

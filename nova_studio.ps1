@@ -8,13 +8,13 @@ foreach ($name in @(
     'Model', 'ModelFile', 'ImportModel', 'SetupPhotoGenerator',
     'Celadon', 'Cobalt', 'Oatmeal', 'CustomGlaze', 'CustomSwatch', 'CustomColorPanel', 'CustomColorWheel',
     'CustomOpacity', 'CustomOpacityLabel', 'CustomColorHex', 'CustomColorPreview',
-    'Thickness', 'Temperature', 'OptionsTabs', 'AdditionalTabs', 'Atmosphere', 'AtmosphereNotes',
+    'Thickness', 'Temperature', 'OptionsTabs', 'StudioTab', 'AdditionalOptionsTab', 'AdditionalTabs', 'Atmosphere', 'AtmosphereNotes',
     'Cone', 'Ramp', 'Soak', 'Schedule', 'CoolingRate', 'CoolingProfile', 'Clay',
     'ClayColor', 'ThicknessMap', 'Geometry', 'LocateBlender', 'BlenderPath',
     'Render', 'ExportSetup', 'Preview', 'EmptyPreview', 'PreviewLabel', 'Status', 'SavePreview',
     'Orient', 'OrientationEditor', 'OrientationModel', 'RotateSurface', 'Turn', 'Tilt', 'Roll',
     'ResetOrientation', 'BakePhotoTexture', 'DraftPhotoMesh', 'ChatKeyToggle', 'ChatKeyPanel',
-    'ChatApiKey', 'ChatSaveKey', 'ChatScroll', 'ChatMessages', 'ChatThinking', 'ChatInput', 'ChatSend',
+    'ChatApiKey', 'ChatSaveKey', 'ChatScroll', 'ChatMessages', 'ChatThinking', 'ChatInput', 'ChatSend', 'ChatToggle', 'ChatPanel',
     'FeaModelPath', 'FeaBrowseModel', 'FeaUseCurrentModel', 'FeaOutput', 'FeaSetup', 'FeaRun',
     'FeaOpenOutput', 'FeaOpenStress', 'FeaResult', 'FeaGeometryMode', 'FeaModelScale', 'FeaUpAxis',
     'FeaWallThickness', 'FeaVoxelSize', 'FeaPreparedVoxelSize', 'FeaMaxVoxels',
@@ -82,13 +82,11 @@ public static class NovaColorWheel {
             else if (h < 5) { r = part; b = chroma; }
             else { r = chroma; b = part; }
             int i = (y * size + x) * 4;
-            if (dx * dx + dy * dy > center * center) { pixels[i] = 235; pixels[i + 1] = 242; pixels[i + 2] = 245; }
-            else {
-                double offset = 1.0 - chroma;
-                pixels[i] = (byte)Math.Round((b + offset) * 255);
-                pixels[i + 1] = (byte)Math.Round((g + offset) * 255);
-                pixels[i + 2] = (byte)Math.Round((r + offset) * 255);
-            }
+            if (dx * dx + dy * dy > center * center) continue;
+            double offset = 1.0 - chroma;
+            pixels[i] = (byte)Math.Round((b + offset) * 255);
+            pixels[i + 1] = (byte)Math.Round((g + offset) * 255);
+            pixels[i + 2] = (byte)Math.Round((r + offset) * 255);
             pixels[i + 3] = 255;
         }
         var bitmap = new WriteableBitmap(size, size, 96, 96, PixelFormats.Bgra32, null);
@@ -164,7 +162,7 @@ function Get-OptionalNumber($control, [string]$label, [switch]$AllowZero) {
     if (!$parsed -or [double]::IsNaN($number) -or [double]::IsInfinity($number) -or
         $number -lt 0 -or (!$AllowZero -and $number -eq 0)) {
         if (!$control.IsVisible -and $control -in @($ui.Ramp, $ui.Soak, $ui.CoolingRate)) {
-            $ui.OptionsTabs.SelectedIndex = 2
+            $ui.OptionsTabs.SelectedItem = $ui.AdditionalOptionsTab
             $ui.AdditionalTabs.SelectedIndex = 0
         }
         $control.BringIntoView()
@@ -186,7 +184,7 @@ function Get-Setup {
     $model.rotation_xyz_degrees = @($ui.Tilt.Value, $ui.Roll.Value, $ui.Turn.Value)
     $clayColor = Get-OptionalText $ui.ClayColor
     if ($clayColor -and $clayColor -notmatch '^#[0-9a-fA-F]{6}$') {
-        $ui.OptionsTabs.SelectedIndex = 2
+        $ui.OptionsTabs.SelectedItem = $ui.AdditionalOptionsTab
         $ui.AdditionalTabs.SelectedIndex = 0
         [void]$ui.ClayColor.Focus()
         throw 'Fired clay color must use the #RRGGBB format.'
@@ -243,7 +241,7 @@ function Add-ChatMessage([string]$message, [bool]$fromUser = $false) {
     $bubble.Padding = [Windows.Thickness]::new(9)
     $bubble.Margin = [Windows.Thickness]::new(0, 0, 0, 7)
     $bubble.HorizontalAlignment = if ($fromUser) { [Windows.HorizontalAlignment]::Right } else { [Windows.HorizontalAlignment]::Left }
-    $bubble.Background = if ($fromUser) { [Windows.Media.SolidColorBrush]::new([Windows.Media.Color]::FromRgb(225, 233, 225)) } else { [Windows.Media.Brushes]::White }
+    $bubble.Background = if ($fromUser) { [Windows.Media.SolidColorBrush]::new([Windows.Media.Color]::FromRgb(223, 216, 229)) } else { [Windows.Media.Brushes]::White }
     $bubble.Child = $text
     [void]$ui.ChatMessages.Children.Add($bubble)
     $ui.ChatScroll.ScrollToEnd()
@@ -651,7 +649,7 @@ function Start-Preview {
     if ($script:job) { return }
     try {
         if (!$script:blender -or !(Test-Path -LiteralPath $script:blender -PathType Leaf)) {
-            $ui.OptionsTabs.SelectedIndex = 2
+            $ui.OptionsTabs.SelectedItem = $ui.AdditionalOptionsTab
             $ui.AdditionalTabs.SelectedIndex = 0
             $ui.LocateBlender.BringIntoView()
             throw 'Install Blender 5.2 or newer, then use Locate Blender under the Additional Options tab.'
@@ -694,7 +692,7 @@ function Start-PhotoGeneration([string]$photoPath) {
     if ($script:job) { return }
     try {
         if (!(Test-PhotoGenerator)) {
-            $ui.OptionsTabs.SelectedIndex = 2
+            $ui.OptionsTabs.SelectedItem = $ui.AdditionalOptionsTab
             $ui.AdditionalTabs.SelectedIndex = 0
             $ui.SetupPhotoGenerator.BringIntoView()
             throw 'Open the Additional Options tab and click Set Up Photo Generator first.'
@@ -879,6 +877,18 @@ $timer.Add_Tick({
     }
 })
 
+$ui.ChatToggle.Add_Click({
+    if ($ui.ChatPanel.Visibility -eq 'Visible') {
+        $ui.ChatPanel.Visibility = 'Collapsed'
+        $ui.ChatToggle.Content = 'NOVA Assistant'
+        [void]$ui.ChatToggle.Focus()
+    } else {
+        $ui.ChatPanel.Visibility = 'Visible'
+        $ui.ChatToggle.Content = 'Hide Assistant'
+        $ui.ChatScroll.ScrollToEnd()
+        [void]$ui.ChatInput.Focus()
+    }
+})
 $ui.ChatKeyToggle.Add_Click({
     $ui.ChatKeyPanel.Visibility = if ($ui.ChatKeyPanel.Visibility -eq [Windows.Visibility]::Visible) {
         [Windows.Visibility]::Collapsed

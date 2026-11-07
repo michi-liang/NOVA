@@ -38,11 +38,11 @@ For command-line use after setup, run `python -m vase_stress.cli run --model vas
 
 ## Combined glaze predictor
 
-On `combined_model`, open **Combined → Set Up Combined Predictor** and select the supplied `Combined_Glaze_Predictor` folder containing `model.json` and `textures`. Setup needs Python 3.10 or newer on PATH and installs NumPy and Pillow into a dedicated environment. The model and photos are copied into the ignored `.combined-glaze` folder.
+On `combined_model`, open **Predictor → Set Up Combined Predictor** and select the supplied `Combined_Glaze_Predictor` folder containing `model.json` and `textures`. Setup needs Python 3.10 or newer on PATH and installs NumPy and Pillow into a dedicated environment. The model and photos are copied into the ignored `.combined-glaze` folder.
 
-Choose the top glaze, base glaze, and firing cone, then click **Predict Color and Swatch**. The appearance service predicts the base color and contrast. The local retrieval model uses those values and the cone to find a similar texture photo and create the swatch. **Apply Color to Studio** uses the predicted color as the custom glaze for a Blender render. The photo swatch stays in the Combined tab.
+Choose the top glaze, base glaze, and firing cone, then click **Predict Color and Swatch**. The appearance service predicts the base color and contrast. The local retrieval model uses those values and the cone to find a similar texture photo and create the swatch. **Apply Color to Studio** uses the predicted color as the custom glaze for a Blender render. The photo swatch stays in the Predictor tab.
 
-For live calls, enter the service owner's private token under **Combined → Live API access**. NOVA keeps it for the current session only. You can also set `AI_TEXTURE_TOKEN` before launching NOVA. If the service's tunnel moves, set `GLAZE_API_URL` to the new HTTPS endpoint. **Run Sample** uses the saved prediction included in the bundle, and **Load Prediction JSON** accepts another saved appearance-service response. Both run the local retrieval model without credentials. The swatch is a color-adjusted photo match, so its pattern is illustrative.
+For live calls, enter the service owner's private token under **Predictor → Live API access**. NOVA keeps it for the current session only. You can also set `AI_TEXTURE_TOKEN` before launching NOVA. If the service's tunnel moves, set `GLAZE_API_URL` to the new HTTPS endpoint. **Run Sample** uses the saved prediction included in the bundle, and **Load Prediction JSON** accepts another saved appearance-service response. Both run the local retrieval model without credentials. The swatch is a color-adjusted photo match, so its pattern is illustrative.
 
 ## Use directly in Blender
 

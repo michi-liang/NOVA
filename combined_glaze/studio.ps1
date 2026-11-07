@@ -52,6 +52,8 @@ function Start-CombinedPrediction($request) {
         Start-StudioJob $combinedPython $arguments @{
             Kind = 'CombinedPrediction'; Tool = 'Combined predictor'; Output = $report
         } 'Generating a glaze color and retrieved swatch...' -environment $environment
+        $script:combinedColor = $null
+        $ui.CombinedResult.Visibility = 'Collapsed'
         $ui.CombinedStatus.Text = 'Working on the prediction...'
     } catch { $ui.CombinedStatus.Text = $_.Exception.Message }
 }
@@ -113,7 +115,7 @@ $ui.CombinedLoad.Add_Click({
 })
 $ui.CombinedApply.Add_Click({
     if ($script:job -or !$script:combinedColor) { return }
-    $ui.OptionsTabs.SelectedIndex = 0
+    $ui.OptionsTabs.SelectedItem = $ui.StudioTab
     $ui.CustomOpacity.Value = 1
     Set-CustomColorFromHex $script:combinedColor
 })

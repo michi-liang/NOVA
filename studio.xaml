@@ -1,8 +1,8 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="NOVA Pottery Studio" Width="1420" Height="800" MinWidth="1120" MinHeight="590"
-        WindowStartupLocation="CenterScreen" Background="#F5F2EB" FontFamily="Segoe UI"
-        Foreground="#24332B" UseLayoutRounding="True">
+        WindowStartupLocation="CenterScreen" Background="#E5E2E7" FontFamily="Segoe UI"
+        Foreground="#302D34" UseLayoutRounding="True">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap"/>
@@ -16,12 +16,18 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Margin" Value="0,9,0,4"/>
         </Style>
+        <Style x:Key="ControlGroup" TargetType="Border">
+            <Setter Property="Background" Value="#ECE8EE"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
         <Style TargetType="Button">
             <Setter Property="Padding" Value="11,6"/>
             <Setter Property="MinHeight" Value="32"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Background" Value="#F5F3ED"/>
-            <Setter Property="BorderBrush" Value="#D3D7CE"/>
+            <Setter Property="Background" Value="#F0EDF2"/>
+            <Setter Property="BorderBrush" Value="#BEB8C3"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -31,8 +37,8 @@
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonFace" Property="Background" Value="#E7EEE5"/></Trigger>
-                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonFace" Property="Background" Value="#D8E5D8"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonFace" Property="Background" Value="#E1DCE5"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonFace" Property="Background" Value="#D3CCD8"/></Trigger>
                             <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ButtonFace" Property="Opacity" Value="0.5"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -46,15 +52,15 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
                         <Border x:Name="TabFace" CornerRadius="10,10,0,0" Background="Transparent" Padding="{TemplateBinding Padding}"
-                                BorderThickness="1,1,1,0" BorderBrush="Transparent" TextElement.Foreground="#F3F4F1" TextElement.FontWeight="SemiBold">
+                                BorderThickness="1,1,1,0" BorderBrush="Transparent" TextElement.Foreground="#F7F4F8" TextElement.FontWeight="SemiBold">
                             <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabFace" Property="Background" Value="#454C47"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabFace" Property="Background" Value="#524A56"/></Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabFace" Property="Background" Value="#FFFEFB"/>
-                                <Setter TargetName="TabFace" Property="BorderBrush" Value="#141614"/>
-                                <Setter TargetName="TabFace" Property="TextElement.Foreground" Value="#24332B"/>
+                                <Setter TargetName="TabFace" Property="Background" Value="#F5F2F6"/>
+                                <Setter TargetName="TabFace" Property="BorderBrush" Value="#28242B"/>
+                                <Setter TargetName="TabFace" Property="TextElement.Foreground" Value="#302D34"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -70,7 +76,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <Border CornerRadius="11,11,0,0" Background="#303632" BorderBrush="#141614" BorderThickness="1,1,1,0" Padding="7,6,7,0">
+                            <Border CornerRadius="11,11,0,0" Background="#3C3641" BorderBrush="#28242B" BorderThickness="1,1,1,0" Padding="7,6,7,0">
                                 <TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="0"/>
                             </Border>
                             <ContentPresenter Grid.Row="1" x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/>
@@ -82,7 +88,7 @@
         <Style TargetType="TextBox">
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="BorderBrush" Value="#B8BFB8"/>
+            <Setter Property="BorderBrush" Value="#A29AA8"/>
         </Style>
         <Style TargetType="ComboBox">
             <Setter Property="Padding" Value="6,4"/>
@@ -90,14 +96,29 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="24,18,24,22">
+    <Grid Margin="22,16,22,20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <StackPanel Margin="0,0,0,16">
-            <TextBlock Text="N O V A   /   C E R A M I C S" Foreground="#546B5C" FontSize="11" FontWeight="SemiBold"/>
-            <TextBlock Text="Pottery Studio" FontSize="32" FontWeight="SemiBold"/>
+        <StackPanel Margin="3,0,0,15">
+            <TextBlock Text="N O V A   /   C E R A M I C S" Foreground="#605767" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,5"/>
+            <Viewbox Width="304" Height="32" HorizontalAlignment="Left" AutomationProperties.Name="Pottery Studio">
+                <Path Stroke="#302D34" StrokeThickness="3.15" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                      Data="M3,27 L4,4 C12,2 20,4 20,10 C20,16 13,18 4,16
+                            M35,3 C44,3 47,11 44,20 C42,28 30,30 27,21 C22,10 27,4 35,3 Z
+                            M49,5 Q58,3 68,5 M58,5 Q56,17 58,27
+                            M73,3 Q82,5 92,3 M82,5 L83,28
+                            M114,5 L99,4 L98,27 L114,26 M99,15 L111,14
+                            M121,27 L122,4 C129,3 138,5 138,11 C138,17 130,18 122,16 M130,17 L140,28
+                            M145,5 L154,16 L163,3 M154,16 L153,28
+                            M195,7 C187,0 177,6 180,12 C182,16 195,15 195,22 C194,29 184,29 178,24
+                            M201,4 Q212,2 221,5 M211,5 L210,27
+                            M228,4 L227,18 C227,30 244,31 245,18 L245,4
+                            M254,27 L253,5 C263,2 273,8 273,15 C272,24 265,28 254,27 Z
+                            M279,4 L288,4 M284,4 L283,27 M278,27 L289,27
+                            M303,3 C312,3 316,10 315,18 C313,28 300,30 297,22 C292,13 295,5 303,3 Z"/>
+            </Viewbox>
         </StackPanel>
 
         <Grid Grid.Row="1">
@@ -105,11 +126,10 @@
                 <ColumnDefinition Width="365"/>
                 <ColumnDefinition Width="16"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="16"/>
-                <ColumnDefinition Width="310"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <Border Background="#FFFEFB" BorderBrush="#DDDCD4" BorderThickness="1,0,1,1" CornerRadius="12">
+            <Border Background="#F5F2F6" BorderBrush="#CEC8D2" BorderThickness="1,0,1,1" CornerRadius="12">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -117,9 +137,11 @@
                     </Grid.RowDefinitions>
                     <TabControl x:Name="OptionsTabs" SelectedIndex="0" Style="{StaticResource StudioRibbon}"
                                 ItemContainerStyle="{StaticResource StudioRibbonTab}">
-                        <TabItem Header="Studio">
+                        <TabItem x:Name="StudioTab" Header="Studio">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="18,15,18,12">
+                        <StackPanel Margin="12,12,12,2">
+                            <Border Style="{StaticResource ControlGroup}">
+                            <StackPanel>
                             <TextBlock Style="{StaticResource Section}" Text="Model"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -135,45 +157,48 @@
                                     <Button x:Name="ImportModel" ToolTip="Import GLB or photo to generate GLB" AutomationProperties.Name="Import GLB or photo to generate GLB"
                                             HorizontalAlignment="Center">
                                         <Path Data="M8,1 L8,10 M4,6 L8,10 L12,6 M1,10 L1,15 L15,15 L15,10" Width="16" Height="16"
-                                              Stroke="#324A3C" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                              Stroke="#514958" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
                                     </Button>
-                                    <TextBlock Text="Import GLB or photo to generate GLB" FontSize="11" Foreground="#52625A" TextAlignment="Center" Margin="0,4,0,0"/>
+                                    <TextBlock Text="Import GLB or photo to generate GLB" FontSize="11" Foreground="#625969" TextAlignment="Center" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Grid>
-                            <TextBlock x:Name="ModelFile" Foreground="#4F6458" FontSize="12" Margin="0,5,0,0" Visibility="Collapsed"/>
+                            <TextBlock x:Name="ModelFile" Foreground="#625969" FontSize="12" Margin="0,5,0,0" Visibility="Collapsed"/>
+                            </StackPanel>
+                            </Border>
 
-                            <Separator Margin="0,12,0,11" Background="#DDDCD4"/>
+                            <Border Style="{StaticResource ControlGroup}">
+                            <StackPanel>
                             <TextBlock Style="{StaticResource Section}" Text="Glaze composition"/>
-                            <TextBlock Foreground="#52625A" FontSize="12" Text="Choose a preset or make a custom color."/>
+                            <TextBlock Foreground="#625969" FontSize="12" Text="Choose a preset or make a custom color."/>
                             <RadioButton x:Name="Celadon" GroupName="Glaze" Tag="CELADON" IsChecked="True" Margin="0,8,0,0" AutomationProperties.Name="Jade Celadon, glossy green">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse Width="15" Height="15" Fill="#729882" Margin="4,0,8,0"/>
                                     <TextBlock Text="Jade Celadon" Width="123" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Glossy green" Foreground="#52625A"/>
+                                    <TextBlock Text="Glossy green" Foreground="#625969"/>
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton x:Name="Cobalt" GroupName="Glaze" Tag="COBALT" Margin="0,7,0,0" AutomationProperties.Name="Cobalt Blue, deep gloss">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse Width="15" Height="15" Fill="#365A88" Margin="4,0,8,0"/>
                                     <TextBlock Text="Cobalt Blue" Width="123" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Deep gloss" Foreground="#52625A"/>
+                                    <TextBlock Text="Deep gloss" Foreground="#625969"/>
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton x:Name="Oatmeal" GroupName="Glaze" Tag="OATMEAL" Margin="0,7,0,0" AutomationProperties.Name="Speckled Oatmeal, warm satin">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse Width="15" Height="15" Fill="#C6A67C" Margin="4,0,8,0"/>
                                     <TextBlock Text="Speckled Oatmeal" Width="123" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Warm satin" Foreground="#52625A"/>
+                                    <TextBlock Text="Warm satin" Foreground="#625969"/>
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton x:Name="CustomGlaze" GroupName="Glaze" Tag="CUSTOM" Margin="0,7,0,0" AutomationProperties.Name="Custom glaze color">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse x:Name="CustomSwatch" Width="15" Height="15" Fill="#C84B32" Margin="4,0,8,0"/>
                                     <TextBlock Text="Custom color" Width="123" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Color wheel" Foreground="#52625A"/>
+                                    <TextBlock Text="Color wheel" Foreground="#625969"/>
                                 </StackPanel>
                             </RadioButton>
-                            <Border x:Name="CustomColorPanel" Visibility="Collapsed" Background="#F5F2EB" CornerRadius="8" Padding="8" Margin="0,8,0,0">
+                            <Border x:Name="CustomColorPanel" Visibility="Collapsed" Background="#E5E2E7" CornerRadius="8" Padding="8" Margin="0,8,0,0">
                                 <StackPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="174"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -184,7 +209,7 @@
                                                 <Border x:Name="CustomColorPreview" CornerRadius="5" Background="#C84B32"/>
                                             </Border>
                                             <TextBlock x:Name="CustomColorHex" Text="#C84B32" FontSize="12"/>
-                                            <TextBlock x:Name="CustomOpacityLabel" Text="100% opacity" FontSize="11" Foreground="#52625A"/>
+                                            <TextBlock x:Name="CustomOpacityLabel" Text="100% opacity" FontSize="11" Foreground="#625969"/>
                                         </StackPanel>
                                     </Grid>
                                     <TextBlock Style="{StaticResource Field}" Text="Glaze opacity"/>
@@ -195,8 +220,11 @@
                                     </DockPanel>
                                 </StackPanel>
                             </Border>
+                            </StackPanel>
+                            </Border>
 
-                            <Separator Margin="0,12,0,10" Background="#DDDCD4"/>
+                            <Border Style="{StaticResource ControlGroup}">
+                            <StackPanel>
                             <TextBlock Style="{StaticResource Section}" Text="Application and firing"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -213,8 +241,46 @@
                                     <TextBox x:Name="Temperature" ToolTip="Peak firing temperature in degrees Celsius. Leave blank if unknown."/>
                                 </StackPanel>
                             </Grid>
-                            <TextBlock Text="Leave unknown values blank. Thickness and firing inputs are saved in the setup." Foreground="#52625A" FontSize="12" Margin="0,7,0,0"/>
+                            <TextBlock Text="Leave unknown values blank. Thickness and firing inputs are saved in the setup." Foreground="#625969" FontSize="12" Margin="0,7,0,0"/>
+                            </StackPanel>
+                            </Border>
 
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Predictor">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="18,15,18,12">
+                            <TextBlock Style="{StaticResource Section}" Text="Combined glaze predictor"/>
+                            <TextBlock Text="Predict a fired color, then retrieve a similar glaze photo to make a swatch." Foreground="#625969" FontSize="12"/>
+                            <Label Target="{Binding ElementName=CombinedTop}" Content="Top glaze ID" Padding="0" Margin="0,10,0,4"/>
+                            <ComboBox x:Name="CombinedTop" IsEditable="True" Text="SW-183"/>
+                            <Label Target="{Binding ElementName=CombinedBase}" Content="Base glaze ID" Padding="0" Margin="0,10,0,4"/>
+                            <ComboBox x:Name="CombinedBase" IsEditable="True" Text="SW-253"/>
+                            <Label Target="{Binding ElementName=CombinedCone}" Content="Firing cone" Padding="0" Margin="0,10,0,4"/>
+                            <TextBox x:Name="CombinedCone" Text="Cone 6"/>
+                            <Expander x:Name="CombinedApiAccess" Header="Live API access" Margin="0,8,0,0">
+                                <StackPanel Margin="0,5,0,0">
+                                    <Label Target="{Binding ElementName=CombinedApiToken}" Content="Prediction API token" Padding="0" Margin="0,0,0,4"/>
+                                    <PasswordBox x:Name="CombinedApiToken" MinHeight="28" AutomationProperties.Name="Prediction API token"/>
+                                    <TextBlock Text="Use the private token from the prediction service owner. NOVA keeps it for this session only." Foreground="#625969" FontSize="11" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Expander>
+                            <WrapPanel Margin="0,9,0,0">
+                                <Button x:Name="CombinedRun" Content="Predict Color and Swatch" Margin="0,0,6,6"/>
+                                <Button x:Name="CombinedLoad" Content="Load Prediction JSON…" Margin="0,0,0,6"/>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <Button x:Name="CombinedSetup" Content="Set Up Combined Predictor…" Margin="0,0,6,6"/>
+                                <Button x:Name="CombinedSample" Content="Run Sample" Margin="0,0,0,6"/>
+                            </WrapPanel>
+                            <TextBlock x:Name="CombinedStatus" FontSize="12" Foreground="#625969" Margin="0,5,0,0"/>
+                            <StackPanel x:Name="CombinedResult" Visibility="Collapsed" Margin="0,10,0,0">
+                                <Image x:Name="CombinedSwatch" Width="160" Height="160" HorizontalAlignment="Left" AutomationProperties.Name="Retrieved glaze swatch"/>
+                                <TextBlock x:Name="CombinedColor" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                                <TextBlock x:Name="CombinedMatch" Foreground="#625969" FontSize="12" Margin="0,4,0,6"/>
+                                <Button x:Name="CombinedApply" Content="Apply Color to Studio" HorizontalAlignment="Left"/>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -222,7 +288,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="18,15,18,12">
                             <TextBlock Style="{StaticResource Section}" Text="Vase stress analysis"/>
-                            <TextBlock Text="Run a local finite element analysis on a GLB vase. The result reports computed stress and displacement; it is an engineering approximation, not a failure guarantee." Foreground="#52625A" FontSize="12" Margin="0,0,0,10"/>
+                            <TextBlock Text="Run a local finite element analysis on a GLB vase. The result reports computed stress and displacement; it is an engineering approximation, not a failure guarantee." Foreground="#625969" FontSize="12" Margin="0,0,0,10"/>
                             <TextBlock Style="{StaticResource Field}" Text="Input GLB"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -236,16 +302,16 @@
                             <TextBlock Style="{StaticResource Field}" Text="Results folder"/>
                             <TextBox x:Name="FeaOutput" ToolTip="Choose a new or empty results folder. Existing analysis files are preserved."/>
                             <TextBlock Style="{StaticResource Field}" Text="Analysis"/>
-                            <TextBlock Text="FEA settings are under Additional Options → FEA Settings. Check scale, axis, wall thickness, material, and forces before each run." Foreground="#52625A" FontSize="12"/>
+                            <TextBlock Text="FEA settings are under Additional Options → FEA Settings. Check scale, axis, wall thickness, material, and forces before each run." Foreground="#625969" FontSize="12"/>
                             <Button x:Name="FeaSetup" Content="Set Up FEA Engine…" HorizontalAlignment="Left" Margin="0,14,0,0"/>
                             <Button x:Name="FeaRun" Content="Run FEA" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="0,8,0,0"/>
                             <Button x:Name="FeaOpenStress" Content="Open stress GLB" HorizontalAlignment="Left" Margin="0,8,0,0" IsEnabled="False"/>
                             <Button x:Name="FeaOpenOutput" Content="Open Results Folder" HorizontalAlignment="Left" Margin="0,8,0,0" IsEnabled="False"/>
-                            <TextBlock x:Name="FeaResult" Text="No analysis run yet." Foreground="#52625A" FontSize="12" Margin="0,12,0,0"/>
+                            <TextBlock x:Name="FeaResult" Text="No analysis run yet." Foreground="#625969" FontSize="12" Margin="0,12,0,0"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
-                <TabItem Header="Additional Options">
+                <TabItem x:Name="AdditionalOptionsTab" Header="Additional Options">
                     <TabControl x:Name="AdditionalTabs" TabStripPlacement="Left" SelectedIndex="0">
                         <TabItem Header="Pottery">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -280,11 +346,11 @@
                                     <TextBlock Style="{StaticResource Field}" Text="Firing orientation or geometry notes"/>
                                     <TextBox x:Name="Geometry" AutomationProperties.Name="Firing orientation or geometry notes"/>
                                     <TextBlock Style="{StaticResource Field}" Text="Glaze layers"/>
-                                    <TextBlock Text="1 layer · fixed" Foreground="#52625A"/>
+                                    <TextBlock Text="1 layer · fixed" Foreground="#625969"/>
                                     <Button x:Name="LocateBlender" Content="Locate Blender…" HorizontalAlignment="Left" Margin="0,12,0,0"/>
-                                    <TextBlock x:Name="BlenderPath" Foreground="#52625A" FontSize="11" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="BlenderPath" Foreground="#625969" FontSize="11" Margin="0,4,0,0"/>
                                     <Button x:Name="SetupPhotoGenerator" Content="Set Up Photo Generator" HorizontalAlignment="Left" Margin="0,12,0,0"/>
-                                    <TextBlock Text="One-time dependency and model download for photo-to-GLB." Foreground="#52625A" FontSize="11" Margin="0,4,0,0"/>
+                                    <TextBlock Text="One-time dependency and model download for photo-to-GLB." Foreground="#625969" FontSize="11" Margin="0,4,0,0"/>
                                     <CheckBox x:Name="BakePhotoTexture" Content="Bake photo texture into GLB (slower)" Margin="0,8,0,0"/>
                                     <CheckBox x:Name="DraftPhotoMesh" Content="Draft photo mesh (faster, less detail)" Margin="0,6,0,0"/>
                                         </StackPanel>
@@ -316,7 +382,7 @@
                                     <TextBlock Style="{StaticResource Field}" Text="Maximum occupied FEA voxels"/>
                                     <TextBox x:Name="FeaMaxVoxels" Text="30000"/>
 
-                                    <Separator Margin="0,13,0,5" Background="#DDDCD4"/>
+                                    <Separator Margin="0,13,0,5" Background="#CEC8D2"/>
                                     <TextBlock Style="{StaticResource Section}" Text="Material"/>
                                     <TextBlock Style="{StaticResource Field}" Text="Young’s modulus (Pa)"/>
                                     <TextBox x:Name="FeaYoungModulus" Text="2000000000"/>
@@ -327,7 +393,7 @@
                                     <TextBlock Style="{StaticResource Field}" Text="Gravity (m/s²)"/>
                                     <TextBox x:Name="FeaGravity" Text="9.81"/>
 
-                                    <Separator Margin="0,13,0,5" Background="#DDDCD4"/>
+                                    <Separator Margin="0,13,0,5" Background="#CEC8D2"/>
                                     <TextBlock Style="{StaticResource Section}" Text="Supports and loads"/>
                                     <TextBlock Style="{StaticResource Field}" Text="Fixed base depth (m)"/>
                                     <TextBox x:Name="FeaFixedDepth" Text="0.005"/>
@@ -341,51 +407,15 @@
                                     <TextBox x:Name="FeaForceZ" Text="0"/>
                                     <TextBlock Style="{StaticResource Field}" Text="Log stress color range (decades)"/>
                                     <TextBox x:Name="FeaLogRange" Text="3"/>
-                                    <TextBlock Text="Lengths are meters after scaling, forces are newtons, and stresses are pascals. Vase wall thickness is an assumption, not inferred from the GLB." Foreground="#52625A" FontSize="11" Margin="0,10,0,0"/>
+                                    <TextBlock Text="Lengths are meters after scaling, forces are newtons, and stresses are pascals. Vase wall thickness is an assumption, not inferred from the GLB." Foreground="#625969" FontSize="11" Margin="0,10,0,0"/>
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>
                     </TabControl>
                 </TabItem>
-                <TabItem Header="Combined">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="18,15,18,12">
-                            <TextBlock Style="{StaticResource Section}" Text="Combined glaze predictor"/>
-                            <TextBlock Text="Predict a fired color, then retrieve a similar glaze photo to make a swatch." Foreground="#52625A" FontSize="12"/>
-                            <Label Target="{Binding ElementName=CombinedTop}" Content="Top glaze ID" Padding="0" Margin="0,10,0,4"/>
-                            <ComboBox x:Name="CombinedTop" IsEditable="True" Text="SW-183"/>
-                            <Label Target="{Binding ElementName=CombinedBase}" Content="Base glaze ID" Padding="0" Margin="0,10,0,4"/>
-                            <ComboBox x:Name="CombinedBase" IsEditable="True" Text="SW-253"/>
-                            <Label Target="{Binding ElementName=CombinedCone}" Content="Firing cone" Padding="0" Margin="0,10,0,4"/>
-                            <TextBox x:Name="CombinedCone" Text="Cone 6"/>
-                            <Expander x:Name="CombinedApiAccess" Header="Live API access" Margin="0,8,0,0">
-                                <StackPanel Margin="0,5,0,0">
-                                    <Label Target="{Binding ElementName=CombinedApiToken}" Content="Prediction API token" Padding="0" Margin="0,0,0,4"/>
-                                    <PasswordBox x:Name="CombinedApiToken" MinHeight="28" AutomationProperties.Name="Prediction API token"/>
-                                    <TextBlock Text="Use the private token from the prediction service owner. NOVA keeps it for this session only." Foreground="#52625A" FontSize="11" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Expander>
-                            <WrapPanel Margin="0,9,0,0">
-                                <Button x:Name="CombinedRun" Content="Predict Color and Swatch" Margin="0,0,6,6"/>
-                                <Button x:Name="CombinedLoad" Content="Load Prediction JSON…" Margin="0,0,0,6"/>
-                            </WrapPanel>
-                            <WrapPanel>
-                                <Button x:Name="CombinedSetup" Content="Set Up Combined Predictor…" Margin="0,0,6,6"/>
-                                <Button x:Name="CombinedSample" Content="Run Sample" Margin="0,0,0,6"/>
-                            </WrapPanel>
-                            <TextBlock x:Name="CombinedStatus" FontSize="12" Foreground="#52625A" Margin="0,5,0,0"/>
-                            <StackPanel x:Name="CombinedResult" Visibility="Collapsed" Margin="0,10,0,0">
-                                <Image x:Name="CombinedSwatch" Width="160" Height="160" HorizontalAlignment="Left" AutomationProperties.Name="Retrieved glaze swatch"/>
-                                <TextBlock x:Name="CombinedColor" FontWeight="SemiBold" Margin="0,6,0,0"/>
-                                <TextBlock x:Name="CombinedMatch" Foreground="#52625A" FontSize="12" Margin="0,4,0,6"/>
-                                <Button x:Name="CombinedApply" Content="Apply Color to Studio" HorizontalAlignment="Left"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
             </TabControl>
 
-                    <Border Grid.Row="1" BorderBrush="#DDDCD4" BorderThickness="0,1,0,0" Padding="18,11">
+                    <Border Grid.Row="1" BorderBrush="#CEC8D2" BorderThickness="0,1,0,0" Padding="18,11">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="Render" Content="Render Preview" FontWeight="SemiBold" IsDefault="True"/>
                             <Button x:Name="ExportSetup" Content="Export Setup…" Margin="8,0,0,0"/>
@@ -394,7 +424,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Background="#FFFEFB" BorderBrush="#DDDCD4" BorderThickness="1" CornerRadius="12" Padding="16">
+            <Border x:Name="PreviewPanel" Grid.Column="2" Background="#F5F2F6" BorderBrush="#CEC8D2" BorderThickness="1" CornerRadius="12" Padding="13">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -405,12 +435,12 @@
                         <Button x:Name="Orient" DockPanel.Dock="Right" Content="Orient Model"/>
                         <TextBlock Style="{StaticResource Section}" Margin="0" VerticalAlignment="Center" Text="Studio preview"/>
                     </DockPanel>
-                    <Border Grid.Row="1" Background="#E9E5DC" CornerRadius="6" ClipToBounds="True">
+                    <Border Grid.Row="1" Background="#D4D0D7" CornerRadius="6" ClipToBounds="True">
                         <Grid>
                             <Image x:Name="Preview" Stretch="Uniform" AutomationProperties.Name="Pottery render"/>
                             <TextBlock x:Name="EmptyPreview" Text="Your Blender render will appear here." HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" Foreground="#52625A" Margin="14" TextAlignment="Center"/>
-                            <Grid x:Name="OrientationEditor" Visibility="Collapsed" Background="#E9E5DC">
+                                       VerticalAlignment="Center" Foreground="#625969" Margin="14" TextAlignment="Center"/>
+                            <Grid x:Name="OrientationEditor" Visibility="Collapsed" Background="#D4D0D7">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
@@ -432,10 +462,10 @@
                                 </Viewport3D>
                                 <Border x:Name="RotateSurface" Background="Transparent" Cursor="SizeAll"
                                         ToolTip="Drag to turn and tilt. Use the Roll slider to rotate sideways."/>
-                                <Border Background="#F5F2EB" CornerRadius="6" Padding="8,5" Margin="10" VerticalAlignment="Top" HorizontalAlignment="Left" IsHitTestVisible="False">
-                                    <TextBlock Text="Live model preview" Foreground="#52625A" FontSize="11"/>
+                                <Border Background="#E5E2E7" CornerRadius="6" Padding="8,5" Margin="10" VerticalAlignment="Top" HorizontalAlignment="Left" IsHitTestVisible="False">
+                                    <TextBlock Text="Live model preview" Foreground="#625969" FontSize="11"/>
                                 </Border>
-                                <Grid Grid.Row="1" Background="#F5F2EB" Margin="8">
+                                <Grid Grid.Row="1" Background="#E5E2E7" Margin="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
@@ -466,14 +496,18 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Margin="0,0,8,0" VerticalAlignment="Center">
                             <TextBlock x:Name="PreviewLabel" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="Status" Text="Ready" Foreground="#52625A" FontSize="12"/>
+                            <TextBlock x:Name="Status" Text="Ready" Foreground="#625969" FontSize="12"/>
                         </StackPanel>
-                        <Button Grid.Column="1" x:Name="SavePreview" Content="Save PNG…" IsEnabled="False"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button x:Name="SavePreview" Content="Save PNG…" IsEnabled="False"/>
+                            <Button x:Name="ChatToggle" Content="NOVA Assistant" Background="#DCD4E0" Margin="8,0,0,0"/>
+                        </StackPanel>
                     </Grid>
                 </Grid>
             </Border>
 
-            <Border Grid.Column="4" Background="#FFFEFB" BorderBrush="#DDDCD4" BorderThickness="1" CornerRadius="12" Padding="14">
+            <Border x:Name="ChatPanel" Grid.Column="3" Visibility="Collapsed" Width="304" MaxHeight="465" VerticalAlignment="Bottom"
+                    Margin="14,0,0,0" Background="#F5F2F6" BorderBrush="#CEC8D2" BorderThickness="1" CornerRadius="12" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -487,31 +521,31 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="NOVA assistant" FontSize="19" FontWeight="SemiBold"/>
-                            <TextBlock Text="Ask for pottery settings or help." Foreground="#52625A" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Text="NOVA Assistant" FontSize="15" FontWeight="SemiBold"/>
+                            <TextBlock Text="Ask for pottery settings or help." Foreground="#625969" FontSize="12" Margin="0,3,0,0"/>
                         </StackPanel>
                         <Button Grid.Column="1" x:Name="ChatKeyToggle" Content="API key…" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
-                    <Border x:Name="ChatKeyPanel" Grid.Row="1" Visibility="Collapsed" Background="#F5F2EB" CornerRadius="8" Padding="9" Margin="0,0,0,9">
+                    <Border x:Name="ChatKeyPanel" Grid.Row="1" Visibility="Collapsed" Background="#E5E2E7" CornerRadius="8" Padding="9" Margin="0,0,0,9">
                         <StackPanel>
                             <TextBlock Text="OpenRouter API key" FontSize="12" FontWeight="SemiBold"/>
                             <PasswordBox x:Name="ChatApiKey" Margin="0,5,0,0" AutomationProperties.Name="OpenRouter API key"/>
-                            <TextBlock Text="Chat text is sent to OpenRouter and its selected model." FontSize="10" Foreground="#52625A" Margin="0,5,0,0"/>
+                            <TextBlock Text="Chat text is sent to OpenRouter and its selected model." FontSize="10" Foreground="#625969" Margin="0,5,0,0"/>
                             <DockPanel Margin="0,7,0,0">
-                                <TextBlock Text="Encrypted for this Windows account." FontSize="10" Foreground="#52625A" VerticalAlignment="Center"/>
+                                <TextBlock Text="Encrypted for this Windows account." FontSize="10" Foreground="#625969" VerticalAlignment="Center"/>
                                 <Button x:Name="ChatSaveKey" Content="Save key" DockPanel.Dock="Right" Margin="8,0,0,0"/>
                             </DockPanel>
                         </StackPanel>
                     </Border>
-                    <Border Grid.Row="2" Background="#F5F2EB" CornerRadius="8" Padding="8">
+                    <Border Grid.Row="2" Background="#E5E2E7" CornerRadius="8" Padding="8">
                         <ScrollViewer x:Name="ChatScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel>
                                 <StackPanel x:Name="ChatMessages">
-                                    <Border Background="#FFFEFB" CornerRadius="8" Padding="9" Margin="0,0,0,7" HorizontalAlignment="Left">
+                                    <Border Background="#F5F2F6" CornerRadius="8" Padding="9" Margin="0,0,0,7" HorizontalAlignment="Left">
                                         <TextBlock Text="Hi, I’m NOVA. How can I help with your pottery today? Ask me about a glaze or tell me what you’d like to change." FontSize="12" TextWrapping="Wrap"/>
                                     </Border>
                                 </StackPanel>
-                                <TextBlock x:Name="ChatThinking" Text="Thinking…" Visibility="Collapsed" Foreground="#52625A" FontSize="12" Margin="8,2"/>
+                                <TextBlock x:Name="ChatThinking" Text="Thinking…" Visibility="Collapsed" Foreground="#625969" FontSize="12" Margin="8,2"/>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
@@ -522,7 +556,7 @@
                         </Grid.RowDefinitions>
                         <TextBox x:Name="ChatInput" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="62" MaxHeight="120" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Message NOVA assistant"/>
                         <DockPanel Grid.Row="1" Margin="0,8,0,0">
-                            <TextBlock Text="Ctrl+Enter to send" Foreground="#52625A" FontSize="11" VerticalAlignment="Center"/>
+                            <TextBlock Text="Ctrl+Enter to send" Foreground="#625969" FontSize="11" VerticalAlignment="Center"/>
                             <Button x:Name="ChatSend" Content="Send" HorizontalAlignment="Right" Margin="0,0,0,0" IsDefault="False" DockPanel.Dock="Right"/>
                         </DockPanel>
                     </Grid>
