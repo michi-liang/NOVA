@@ -141,7 +141,36 @@
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
+                <TabItem Header="FEA">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="18,15,18,12">
+                            <TextBlock Style="{StaticResource Section}" Text="Vase stress analysis"/>
+                            <TextBlock Text="Run a local finite element analysis on a GLB vase. The result reports computed stress and displacement; it is an engineering approximation, not a failure guarantee." Foreground="#52625A" FontSize="12" Margin="0,0,0,10"/>
+                            <TextBlock Style="{StaticResource Field}" Text="Input GLB"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="FeaModelPath" IsReadOnly="True" ToolTip="Select a vase GLB or use the currently imported studio GLB."/>
+                                <Button Grid.Column="1" x:Name="FeaBrowseModel" Content="Browse…" Margin="8,0,0,0"/>
+                            </Grid>
+                            <Button x:Name="FeaUseCurrentModel" Content="Use imported Studio GLB" HorizontalAlignment="Left" Margin="0,7,0,0"/>
+                            <TextBlock Style="{StaticResource Field}" Text="Results folder"/>
+                            <TextBox x:Name="FeaOutput" ToolTip="Choose a new or empty results folder. Existing analysis files are preserved."/>
+                            <TextBlock Style="{StaticResource Field}" Text="Analysis"/>
+                            <TextBlock Text="FEA settings are under Additional Options → FEA Settings. Check scale, axis, wall thickness, material, and forces before each run." Foreground="#52625A" FontSize="12"/>
+                            <Button x:Name="FeaSetup" Content="Set Up FEA Engine…" HorizontalAlignment="Left" Margin="0,14,0,0"/>
+                            <Button x:Name="FeaRun" Content="Run FEA" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                            <Button x:Name="FeaOpenStress" Content="Open stress GLB" HorizontalAlignment="Left" Margin="0,8,0,0" IsEnabled="False"/>
+                            <Button x:Name="FeaOpenOutput" Content="Open Results Folder" HorizontalAlignment="Left" Margin="0,8,0,0" IsEnabled="False"/>
+                            <TextBlock x:Name="FeaResult" Text="No analysis run yet." Foreground="#52625A" FontSize="12" Margin="0,12,0,0"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
                 <TabItem Header="Additional Options">
+                    <TabControl x:Name="AdditionalTabs" TabStripPlacement="Left" SelectedIndex="0">
+                        <TabItem Header="Pottery">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                         <StackPanel Margin="10,4,10,10" TextElement.FontWeight="Normal">
                                     <TextBlock Style="{StaticResource Field}" Text="Kiln atmosphere"/>
@@ -183,6 +212,63 @@
                                     <CheckBox x:Name="DraftPhotoMesh" Content="Draft photo mesh (faster, less detail)" Margin="0,6,0,0"/>
                                         </StackPanel>
                     </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="FEA Settings">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="14,8,12,12">
+                                    <TextBlock Style="{StaticResource Section}" Text="Geometry and resolution"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Geometry mode"/>
+                                    <ComboBox x:Name="FeaGeometryMode" SelectedIndex="0" AutomationProperties.Name="FEA geometry mode">
+                                        <ComboBoxItem Tag="vase">Reconstruct hollow vase</ComboBoxItem>
+                                        <ComboBoxItem Tag="strict">Strict closed volume</ComboBoxItem>
+                                    </ComboBox>
+                                    <TextBlock Style="{StaticResource Field}" Text="Model scale multiplier"/>
+                                    <TextBox x:Name="FeaModelScale" Text="1" ToolTip="Use 0.001 for a model authored in millimeters."/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Up axis"/>
+                                    <ComboBox x:Name="FeaUpAxis" SelectedIndex="2" AutomationProperties.Name="FEA up axis">
+                                        <ComboBoxItem Tag="x">X</ComboBoxItem>
+                                        <ComboBoxItem Tag="y">Y</ComboBoxItem>
+                                        <ComboBoxItem Tag="z">Z</ComboBoxItem>
+                                    </ComboBox>
+                                    <TextBlock Style="{StaticResource Field}" Text="Assumed wall and bottom thickness (m)"/>
+                                    <TextBox x:Name="FeaWallThickness" Text="0.02"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="FEA voxel pitch (m)"/>
+                                    <TextBox x:Name="FeaVoxelSize" Text="0.01" ToolTip="Smaller values create a finer mesh and use substantially more memory."/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Prepared preview voxel pitch (m)"/>
+                                    <TextBox x:Name="FeaPreparedVoxelSize" Text="0.0025"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Maximum occupied FEA voxels"/>
+                                    <TextBox x:Name="FeaMaxVoxels" Text="30000"/>
+
+                                    <Separator Margin="0,13,0,5" Background="#DDDCD4"/>
+                                    <TextBlock Style="{StaticResource Section}" Text="Material"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Young’s modulus (Pa)"/>
+                                    <TextBox x:Name="FeaYoungModulus" Text="2000000000"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Poisson ratio"/>
+                                    <TextBox x:Name="FeaPoissonRatio" Text="0.3"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Density (kg/m³)"/>
+                                    <TextBox x:Name="FeaDensity" Text="1200"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Gravity (m/s²)"/>
+                                    <TextBox x:Name="FeaGravity" Text="9.81"/>
+
+                                    <Separator Margin="0,13,0,5" Background="#DDDCD4"/>
+                                    <TextBlock Style="{StaticResource Section}" Text="Supports and loads"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Fixed base depth (m)"/>
+                                    <TextBox x:Name="FeaFixedDepth" Text="0.005"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Top load selection depth (m)"/>
+                                    <TextBox x:Name="FeaTopDepth" Text="0.005"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Force X (N)"/>
+                                    <TextBox x:Name="FeaForceX" Text="0"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Force Y (N)"/>
+                                    <TextBox x:Name="FeaForceY" Text="0"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Force Z (N)"/>
+                                    <TextBox x:Name="FeaForceZ" Text="0"/>
+                                    <TextBlock Style="{StaticResource Field}" Text="Log stress color range (decades)"/>
+                                    <TextBox x:Name="FeaLogRange" Text="3"/>
+                                    <TextBlock Text="Lengths are meters after scaling, forces are newtons, and stresses are pascals. Vase wall thickness is an assumption, not inferred from the GLB." Foreground="#52625A" FontSize="11" Margin="0,10,0,0"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
                 </TabItem>
             </TabControl>
 
